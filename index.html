@@ -50,6 +50,7 @@
     #pickerCanvas {
       flex: 1;
       background: black;
+      image-rendering: pixelated;
     }
   </style>
 </head>
@@ -80,8 +81,8 @@
     const GRID_ROWS = 28;
     const CELL_SIZE = 8;
 
-    const MIN_CANVAS_WIDTH = 800;
-    const MIN_CANVAS_HEIGHT = 600;
+    const MIN_CANVAS_WIDTH = GRID_COLS * CELL_SIZE;
+    const MIN_CANVAS_HEIGHT = GRID_ROWS * CELL_SIZE;
 
     drawCanvas.width = GRID_COLS * CELL_SIZE;
     drawCanvas.height = GRID_ROWS * CELL_SIZE;
@@ -132,7 +133,7 @@
     toolButtons.paint.addEventListener('click', () => setActiveTool('paint'));
     toolButtons.write.addEventListener('click', () => setActiveTool('write'));
 
-    setActiveTool('paint'); // default
+    setActiveTool('paint');
 
     function drawGlyph(ctx, rows, x, y, scale = 1) {
       for (let r = 0; r < 8; r++) {
@@ -166,40 +167,29 @@
     }
 
     function redrawPicker() {
-      const W = pickerCanvas.clientWidth;
-      const H = pickerCanvas.clientHeight;
+      const chosenScale = 3;
+      const cellW = 8 * chosenScale;
+      const cellH = 8 * chosenScale;
+      const maxCols = Math.floor(pickerCanvas.clientWidth / cellW);
+      const rows = Math.ceil(entries.length / maxCols);
 
-      pickerCanvas.width = W;
-      pickerCanvas.height = H;
+      pickerCanvas.style.width = `${maxCols * cellW}px`;
+      pickerCanvas.style.height = `${rows * cellH}px`;
+      pickerCanvas.width = maxCols * cellW;
+      pickerCanvas.height = rows * cellH;
 
       pickerCtx.fillStyle = bgColor;
-      pickerCtx.fillRect(0, 0, W, H);
-
-      const letterSpacing = 0;
-      let chosenScale = 1;
-
-      for (let s = Math.floor(Math.min(W / 8, H / 8)); s >= 1; s--) {
-        const cellW = 8 * s + letterSpacing;
-        const maxCols = Math.floor(W / cellW);
-        const totalH = Math.ceil(entries.length / maxCols) * (8 * s + letterSpacing);
-        if (totalH <= H) {
-          chosenScale = s;
-          break;
-        }
-      }
-
-      const cellW = 8 * chosenScale + letterSpacing;
-      const maxCols = Math.floor(W / cellW);
-      glyphPositions = [];
+      pickerCtx.fillRect(0, 0, pickerCanvas.width, pickerCanvas.height);
 
       pickerCtx.fillStyle = fontColor;
+      glyphPositions = [];
 
       for (let i = 0; i < entries.length; i++) {
         const [cp, rows] = entries[i];
         const col = i % maxCols;
         const row = Math.floor(i / maxCols);
         const x = col * cellW;
-        const y = row * (8 * chosenScale + letterSpacing);
+        const y = row * cellH;
         drawGlyph(pickerCtx, rows, x, y, chosenScale);
         glyphPositions.push({ x, y, scale: chosenScale, cp });
 
@@ -207,7 +197,7 @@
           pickerCtx.strokeStyle = "#FFF";
           pickerCtx.lineWidth = 2;
           pickerCtx.strokeRect(x - 1, y - 1, 8 * chosenScale + 2, 8 * chosenScale + 2);
-        }        
+        }
       }
     }
 
@@ -215,8 +205,10 @@
 
     pickerCanvas.addEventListener('click', e => {
       const rect = pickerCanvas.getBoundingClientRect();
-      const mx = e.clientX - rect.left;
-      const my = e.clientY - rect.top;
+      const scaleX = pickerCanvas.width / rect.width;
+      const scaleY = pickerCanvas.height / rect.height;
+      const mx = (e.clientX - rect.left) * scaleX;
+      const my = (e.clientY - rect.top) * scaleY;
 
       for (const { x, y, scale, cp } of glyphPositions) {
         const w = 8 * scale;
@@ -256,7 +248,7 @@
     });
 
     function scaleDrawCanvasToWindow() {
-      const pickerWidth = pickerCanvas.getBoundingClientRect().width;
+      const pickerWidth = document.getElementById('sidebar').getBoundingClientRect().width;
       const availableWidth = window.innerWidth - pickerWidth;
       const availableHeight = window.innerHeight;
       const aspectRatio = GRID_COLS / GRID_ROWS;
