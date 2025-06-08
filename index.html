@@ -2,122 +2,293 @@
 <html lang="en">
 <head>
   <meta charset="UTF-8" />
-  <title>C64 PETSCII Full‐Screen Demo</title>
+  <title>Pages Website</title>
   <style>
     html, body {
-      margin: 0;
-      padding: 0;
-      overflow: hidden;
+      margin: 0; padding: 0;
       background: #000;
-      width: 100%;
-      height: 100%;
+      width: 100%; height: 100%;
+    }
+    #app {
+      display: flex;
+      width: 100vw;
+      height: 100vh;
+      overflow: hidden;
     }
     canvas {
       display: block;
       image-rendering: pixelated;
     }
+    #drawCanvas {
+      flex: 1;
+      background: black;
+    }
+    #sidebar {
+      width: 30%;
+      display: flex;
+      flex-direction: column;
+      border-left: 2px solid #444;
+    }
+    #tools {
+      height: 60px;
+      display: flex;
+      border-bottom: 2px solid #444;
+      align-items: center;
+      justify-content: center;
+      gap: 10px;
+      background: #111;
+    }
+    .tool-button {
+      width: 24px;
+      height: 24px;
+      cursor: pointer;
+      border: 2px solid transparent;
+    }
+    .tool-selected {
+      border-color: white;
+    }
+    #pickerCanvas {
+      flex: 1;
+      background: black;
+    }
   </style>
 </head>
 <body>
-  <canvas id="fontCanvas"></canvas>
+ <div id="app">
+    <canvas id="drawCanvas"></canvas>
+    <div id="sidebar">
+      <div id="tools">
+        <canvas id="toolPlaceGlyph" class="tool-button" title="Place Glyph"></canvas>
+        <canvas id="toolWriteKeyboard" class="tool-button" title="Write with Keyboard"></canvas>
+      </div>
+      <canvas id="pickerCanvas"></canvas>
+    </div>
+  </div>
 
   <script type="module">
-    // ─────────────────────────────────────────────────────────────────────────────
-    // 1) Import the full 256‐entry PETSCII font array (each entry is an 8‐byte array)
-    // ─────────────────────────────────────────────────────────────────────────────
-    import { font8x8_petscii } from './petscii.js';
+    import { font8x8_bescii } from './bescii.js';
 
-    // ─────────────────────────────────────────────────────────────────────────────
-    // 2) Set up canvas & colors
-    // ─────────────────────────────────────────────────────────────────────────────
-    const canvas = document.getElementById('fontCanvas');
-    const ctx    = canvas.getContext('2d');
-    const bgColor   = '#000';   // black
-    const fontColor = '#0F0';   // bright green
+    const pickerCanvas = document.getElementById('pickerCanvas');
+    const pickerCtx = pickerCanvas.getContext('2d');
+    const drawCanvas = document.getElementById('drawCanvas');
+    const drawCtx = drawCanvas.getContext('2d');
 
-    // ─────────────────────────────────────────────────────────────────────────────
-    // 3) Utility to clamp a code to 0..255
-    // ─────────────────────────────────────────────────────────────────────────────
-    function getCode(ch) {
-      if (typeof ch === 'string') {
-        return ch.charCodeAt(0) & 0xFF;
+    const bgColor = '#000';
+    const fontColor = '#0F0';
+
+    const GRID_COLS = 40;
+    const GRID_ROWS = 28;
+    const CELL_SIZE = 8;
+
+    const MIN_CANVAS_WIDTH = 800;
+    const MIN_CANVAS_HEIGHT = 600;
+
+    drawCanvas.width = GRID_COLS * CELL_SIZE;
+    drawCanvas.height = GRID_ROWS * CELL_SIZE;
+
+    let selectedGlyph = null;
+    let placedGlyphs = [];
+    let glyphPositions = [];
+
+    const entries = Object.entries(font8x8_bescii)
+      .map(([hexCp, rows]) => [parseInt(hexCp, 16), rows])
+      .sort((a, b) => a[0] - b[0]);
+
+    const tools = {
+      PLACE_GLYPH: 'paint',
+      WRITE_KEYBOARD: 'write'
+    };
+
+    let activeTool = tools.PLACE_GLYPH;
+
+    const toolButtons = {
+      paint: document.getElementById('toolPlaceGlyph'),
+      write: document.getElementById('toolWriteKeyboard')
+    };
+
+    function setActiveTool(tool) {
+      activeTool = tool;
+      for (let key in toolButtons) {
+        toolButtons[key].classList.remove('tool-selected');
       }
-      return ch & 0xFF;
+      toolButtons[tool].classList.add('tool-selected');
     }
 
-    // ─────────────────────────────────────────────────────────────────────────────
-    // 4) drawChar() – plot one 8×8 glyph at (x,y) using a given scale
-    // ─────────────────────────────────────────────────────────────────────────────
-    function drawChar(ctx, ch, x, y, scale = 1) {
-      const code = getCode(ch);
-      const glyph = font8x8_petscii[code]; // guaranteed 8‐byte array
-      for (let row = 0; row < 8; row++) {
-        const rowByte = glyph[row];
+    toolButtons.paint.width = toolButtons.paint.height = 24;
+    toolButtons.write.width = toolButtons.write.height = 24;
+
+    const toolCtxPlace = toolButtons.paint.getContext('2d');
+    const toolCtxWrite = toolButtons.write.getContext('2d');
+
+    const paintbrush = font8x8_bescii[0xF019] || Object.values(font8x8_bescii)[0];
+    const pencil = font8x8_bescii[0xE000] || Object.values(font8x8_bescii)[1];
+
+    toolCtxPlace.fillStyle = '#0F0';
+    drawGlyph(toolCtxPlace, paintbrush, 0, 0, 3);
+
+    toolCtxWrite.fillStyle = '#0F0';
+    drawGlyph(toolCtxWrite, pencil, 0, 0, 3);
+
+    toolButtons.paint.addEventListener('click', () => setActiveTool('paint'));
+    toolButtons.write.addEventListener('click', () => setActiveTool('write'));
+
+    setActiveTool('paint'); // default
+
+    function drawGlyph(ctx, rows, x, y, scale = 1) {
+      for (let r = 0; r < 8; r++) {
+        const rowByte = rows[r];
         for (let bit = 0; bit < 8; bit++) {
           if (rowByte & (1 << (7 - bit))) {
-            ctx.fillRect(
-              x + bit * scale,
-              y + row * scale,
-              scale, scale
-            );
+            ctx.fillRect(x + bit * scale, y + r * scale, scale, scale);
           }
         }
       }
     }
 
-    // ─────────────────────────────────────────────────────────────────────────────
-    // 5) redrawAll() – clear canvas, pick the largest scale so that 256 glyphs fit,
-    //    then draw them in a grid.
-    // ─────────────────────────────────────────────────────────────────────────────
-    function redrawAll() {
-      const W = window.innerWidth;
-      const H = window.innerHeight;
-      canvas.width  = W;
-      canvas.height = H;
+    function drawCheckerboard(ctx, cols, rows, size) {
+      const color1 = "#111";
+      const color2 = "#222";
+      for (let y = 0; y < rows; y++) {
+        for (let x = 0; x < cols; x++) {
+          ctx.fillStyle = (x + y) % 2 === 0 ? color1 : color2;
+          ctx.fillRect(x * size, y * size, size, size);
+        }
+      }
+    }
 
-      // Fill background
-      ctx.fillStyle = bgColor;
-      ctx.fillRect(0, 0, W, H);
+    function setupDrawCanvas() {
+      drawCtx.clearRect(0, 0, drawCanvas.width, drawCanvas.height);
+      drawCheckerboard(drawCtx, GRID_COLS, GRID_ROWS, CELL_SIZE);
+      drawCtx.fillStyle = fontColor;
+      for (const { glyph, x, y } of placedGlyphs) {
+        drawGlyph(drawCtx, glyph, x, y, 1);
+      }
+    }
 
-      // 1px between each glyph
-      const letterSpacing = 1;
+    function redrawPicker() {
+      const W = pickerCanvas.clientWidth;
+      const H = pickerCanvas.clientHeight;
 
-      // Find the largest integer “scale” where 256 glyphs (8×8 each) fit inside W×H
+      pickerCanvas.width = W;
+      pickerCanvas.height = H;
+
+      pickerCtx.fillStyle = bgColor;
+      pickerCtx.fillRect(0, 0, W, H);
+
+      const letterSpacing = 0;
       let chosenScale = 1;
+
       for (let s = Math.floor(Math.min(W / 8, H / 8)); s >= 1; s--) {
         const cellW = 8 * s + letterSpacing;
         const maxCols = Math.floor(W / cellW);
-        if (maxCols < 1) continue;
-        const rowsNeeded = Math.ceil(256 / maxCols);
-        const totalH = rowsNeeded * (8 * s + letterSpacing);
+        const totalH = Math.ceil(entries.length / maxCols) * (8 * s + letterSpacing);
         if (totalH <= H) {
           chosenScale = s;
           break;
         }
       }
 
-      ctx.fillStyle = fontColor;
       const cellW = 8 * chosenScale + letterSpacing;
-      const cellH = 8 * chosenScale + letterSpacing;
       const maxCols = Math.floor(W / cellW);
+      glyphPositions = [];
 
-      for (let code = 0; code < 256; code++) {
-        const idx = code; // 0..255
-        const col = idx % maxCols;
-        const row = Math.floor(idx / maxCols);
+      pickerCtx.fillStyle = fontColor;
+
+      for (let i = 0; i < entries.length; i++) {
+        const [cp, rows] = entries[i];
+        const col = i % maxCols;
+        const row = Math.floor(i / maxCols);
         const x = col * cellW;
-        const y = row * cellH;
-        drawChar(ctx, code, x, y, chosenScale);
+        const y = row * (8 * chosenScale + letterSpacing);
+        drawGlyph(pickerCtx, rows, x, y, chosenScale);
+        glyphPositions.push({ x, y, scale: chosenScale, cp });
+
+        if (cp === selectedGlyphCodepoint) {
+          pickerCtx.strokeStyle = "#FFF";
+          pickerCtx.lineWidth = 2;
+          pickerCtx.strokeRect(x - 1, y - 1, 8 * chosenScale + 2, 8 * chosenScale + 2);
+        }        
       }
     }
 
-    // ─────────────────────────────────────────────────────────────────────────────
-    // 6) Redraw on load & resize
-    // ─────────────────────────────────────────────────────────────────────────────
-    window.addEventListener('load', redrawAll);
-    window.addEventListener('resize', () => {
-      window.requestAnimationFrame(redrawAll);
+    let selectedGlyphCodepoint = null;
+
+    pickerCanvas.addEventListener('click', e => {
+      const rect = pickerCanvas.getBoundingClientRect();
+      const mx = e.clientX - rect.left;
+      const my = e.clientY - rect.top;
+
+      for (const { x, y, scale, cp } of glyphPositions) {
+        const w = 8 * scale;
+        const h = 8 * scale;
+        if (mx >= x && mx <= x + w && my >= y && my <= y + h) {
+          const hex = cp.toString(16).padStart(2, '0').toUpperCase();
+          selectedGlyph = font8x8_bescii[hex];
+          selectedGlyphCodepoint = cp;
+          redrawPicker();
+          break;
+        }
+      }
     });
+
+    drawCanvas.addEventListener('click', e => {
+      if (!selectedGlyph) return;
+      const rect = drawCanvas.getBoundingClientRect();
+      const scaleX = drawCanvas.width / rect.width;
+      const scaleY = drawCanvas.height / rect.height;
+      const x = Math.floor((e.clientX - rect.left) * scaleX / CELL_SIZE) * CELL_SIZE;
+      const y = Math.floor((e.clientY - rect.top) * scaleY / CELL_SIZE) * CELL_SIZE;
+      drawCtx.fillStyle = fontColor;
+      drawGlyph(drawCtx, selectedGlyph, x, y, 1);
+      placedGlyphs.push({ glyph: selectedGlyph, x, y });
+    });
+
+    drawCanvas.addEventListener('contextmenu', e => {
+      e.preventDefault();
+      const rect = drawCanvas.getBoundingClientRect();
+      const scaleX = drawCanvas.width / rect.width;
+      const scaleY = drawCanvas.height / rect.height;
+      const x = Math.floor((e.clientX - rect.left) * scaleX / CELL_SIZE) * CELL_SIZE;
+      const y = Math.floor((e.clientY - rect.top) * scaleY / CELL_SIZE) * CELL_SIZE;
+
+      placedGlyphs = placedGlyphs.filter(g => !(g.x === x && g.y === y));
+      setupDrawCanvas();
+    });
+
+    function scaleDrawCanvasToWindow() {
+      const pickerWidth = pickerCanvas.getBoundingClientRect().width;
+      const availableWidth = window.innerWidth - pickerWidth;
+      const availableHeight = window.innerHeight;
+      const aspectRatio = GRID_COLS / GRID_ROWS;
+
+      let finalW = availableWidth;
+      let finalH = finalW / aspectRatio;
+
+      if (finalH > availableHeight) {
+        finalH = availableHeight;
+        finalW = finalH * aspectRatio;
+      }
+
+      finalW = Math.max(finalW, MIN_CANVAS_WIDTH);
+      finalH = Math.max(finalH, MIN_CANVAS_HEIGHT);
+
+      drawCanvas.style.width = `${finalW}px`;
+      drawCanvas.style.height = `${finalH}px`;
+    }
+
+    function refresh() {
+      scaleDrawCanvasToWindow();
+      setupDrawCanvas();
+      redrawPicker();
+    }
+
+    window.addEventListener('load', () => {
+      drawCanvas.width = GRID_COLS * CELL_SIZE;
+      drawCanvas.height = GRID_ROWS * CELL_SIZE;
+      refresh();
+    });
+
+    window.addEventListener('resize', refresh);
   </script>
 </body>
 </html>
