@@ -11,17 +11,19 @@
     }
     #app {
       display: flex;
+      justify-content: center; 
+      align-items: center;     
       width: 100vw;
       height: 100vh;
       overflow: hidden;
     }
+    #drawCanvas {
+      flex: 0 0 auto;
+      background: black;
+    }
     canvas {
       display: block;
       image-rendering: pixelated;
-    }
-    #drawCanvas {
-      flex: 1;
-      background: black;
     }
     #sidebar {
       width: 30%;
@@ -80,9 +82,12 @@
     const GRID_COLS = 40;
     const GRID_ROWS = 28;
     const CELL_SIZE = 8;
-
+    
     const MIN_CANVAS_WIDTH = GRID_COLS * CELL_SIZE;
     const MIN_CANVAS_HEIGHT = GRID_ROWS * CELL_SIZE;
+
+    const MAX_CANVAS_WIDTH  = GRID_COLS * CELL_SIZE;
+    const MAX_CANVAS_HEIGHT = GRID_ROWS * CELL_SIZE;
 
     drawCanvas.width = GRID_COLS * CELL_SIZE;
     drawCanvas.height = GRID_ROWS * CELL_SIZE;
@@ -259,10 +264,9 @@
       if (finalH > availableHeight) {
         finalH = availableHeight;
         finalW = finalH * aspectRatio;
-      }
 
-      finalW = Math.max(finalW, MIN_CANVAS_WIDTH);
-      finalH = Math.max(finalH, MIN_CANVAS_HEIGHT);
+        console.log("W:" + finalW + ", H:" + finalH);
+      }
 
       drawCanvas.style.width = `${finalW}px`;
       drawCanvas.style.height = `${finalH}px`;
