@@ -11,14 +11,15 @@
     }
     #app {
       display: flex;
-      justify-content: center; 
-      align-items: center;     
+      justify-content: flex-start;
+      align-items: center;
       width: 100vw;
       height: 100vh;
       overflow: hidden;
     }
     #drawCanvas {
-      flex: 0 0 auto;
+      flex: 1 1 auto;
+      min-width: 0;
       background: black;
     }
     canvas {
@@ -27,9 +28,14 @@
     }
     #sidebar {
       width: 30%;
+      flex: 0 0 30%;
+      height: 100vh;
       display: flex;
       flex-direction: column;
       border-left: 2px solid #444;
+      justify-content: flex-start;
+      align-self: flex-start;
+      overflow-y: auto;
     }
     #tools {
       height: 60px;
@@ -39,6 +45,24 @@
       justify-content: center;
       gap: 10px;
       background: #111;
+    }
+    #palette {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(32px, 1fr));
+      gap: 4px;
+      padding: 4px;
+      background: #111;
+      border-bottom: 2px solid #444;
+    }
+    .palette-swatch {
+      width: 100%;
+      max-width: 32px;
+      aspect-ratio: 1;
+      cursor: pointer;
+      border: 2px solid transparent;
+    }
+    .palette-selected {
+      border-color: white;
     }
     .tool-button {
       width: 24px;
@@ -50,241 +74,208 @@
       border-color: white;
     }
     #pickerCanvas {
-      flex: 1;
+      flex: 0 0 auto;
       background: black;
       image-rendering: pixelated;
     }
   </style>
 </head>
 <body>
- <div id="app">
+  <div id="app">
     <canvas id="drawCanvas"></canvas>
     <div id="sidebar">
       <div id="tools">
         <canvas id="toolPlaceGlyph" class="tool-button" title="Place Glyph"></canvas>
         <canvas id="toolWriteKeyboard" class="tool-button" title="Write with Keyboard"></canvas>
       </div>
+      <div id="palette"></div>
       <canvas id="pickerCanvas"></canvas>
     </div>
   </div>
-
   <script type="module">
     import { font8x8_bescii } from './bescii.js';
-
     const pickerCanvas = document.getElementById('pickerCanvas');
-    const pickerCtx = pickerCanvas.getContext('2d');
-    const drawCanvas = document.getElementById('drawCanvas');
-    const drawCtx = drawCanvas.getContext('2d');
-
-    const bgColor = '#000';
-    const fontColor = '#0F0';
-
+    const pickerCtx    = pickerCanvas.getContext('2d');
+    const drawCanvas   = document.getElementById('drawCanvas');
+    const drawCtx      = drawCanvas.getContext('2d');
+    const bgColor      = '#000';
+    let fontColor      = '#00ff00';
+    const paletteColors = [
+      '#000000','#444444','#777770','#ffffff',
+      '#9b0000','#ff0000','#009b00','#00ff00',
+      '#9b9b00','#ffff00','#00009b','#0000ff',
+      '#9b009b','#ff00ff','#009b9b','#00ffff'
+    ];
     const GRID_COLS = 40;
     const GRID_ROWS = 28;
     const CELL_SIZE = 8;
-    
-    const MIN_CANVAS_WIDTH = GRID_COLS * CELL_SIZE;
-    const MIN_CANVAS_HEIGHT = GRID_ROWS * CELL_SIZE;
-
-    const MAX_CANVAS_WIDTH  = GRID_COLS * CELL_SIZE;
-    const MAX_CANVAS_HEIGHT = GRID_ROWS * CELL_SIZE;
-
-    drawCanvas.width = GRID_COLS * CELL_SIZE;
+    drawCanvas.width  = GRID_COLS * CELL_SIZE;
     drawCanvas.height = GRID_ROWS * CELL_SIZE;
-
-    let selectedGlyph = null;
-    let placedGlyphs = [];
-    let glyphPositions = [];
-
+    let selectedGlyph          = null;
+    let placedGlyphs           = [];
+    let glyphPositions         = [];
+    let isPainting             = false;
+    let isDeleting             = false;
+    let selectedGlyphCodepoint = null;
     const entries = Object.entries(font8x8_bescii)
       .map(([hexCp, rows]) => [parseInt(hexCp, 16), rows])
-      .sort((a, b) => a[0] - b[0]);
-
-    const tools = {
-      PLACE_GLYPH: 'paint',
-      WRITE_KEYBOARD: 'write'
-    };
-
-    let activeTool = tools.PLACE_GLYPH;
-
+      .sort((a,b) => a[0]-b[0]);
     const toolButtons = {
       paint: document.getElementById('toolPlaceGlyph'),
       write: document.getElementById('toolWriteKeyboard')
     };
-
-    function setActiveTool(tool) {
-      activeTool = tool;
-      for (let key in toolButtons) {
-        toolButtons[key].classList.remove('tool-selected');
-      }
+    function setActiveTool(tool){
+      for(let k in toolButtons) toolButtons[k].classList.remove('tool-selected');
       toolButtons[tool].classList.add('tool-selected');
     }
-
     toolButtons.paint.width = toolButtons.paint.height = 24;
     toolButtons.write.width = toolButtons.write.height = 24;
-
     const toolCtxPlace = toolButtons.paint.getContext('2d');
     const toolCtxWrite = toolButtons.write.getContext('2d');
-
     const paintbrush = font8x8_bescii[0xF019] || Object.values(font8x8_bescii)[0];
-    const pencil = font8x8_bescii[0xE000] || Object.values(font8x8_bescii)[1];
-
-    toolCtxPlace.fillStyle = '#0F0';
-    drawGlyph(toolCtxPlace, paintbrush, 0, 0, 3);
-
-    toolCtxWrite.fillStyle = '#0F0';
-    drawGlyph(toolCtxWrite, pencil, 0, 0, 3);
-
-    toolButtons.paint.addEventListener('click', () => setActiveTool('paint'));
-    toolButtons.write.addEventListener('click', () => setActiveTool('write'));
-
+    const pencil     = font8x8_bescii[0xE000] || Object.values(font8x8_bescii)[1];
+    toolCtxPlace.fillStyle = '#0F0'; drawGlyph(toolCtxPlace, paintbrush,    0,0,3);
+    toolCtxWrite.fillStyle = '#0F0'; drawGlyph(toolCtxWrite, pencil,         0,0,3);
+    toolButtons.paint.addEventListener('click', ()=>setActiveTool('paint'));
+    toolButtons.write.addEventListener('click', ()=>setActiveTool('write'));
     setActiveTool('paint');
-
-    function drawGlyph(ctx, rows, x, y, scale = 1) {
-      for (let r = 0; r < 8; r++) {
+    function drawGlyph(ctx, rows, x, y, scale=1){
+      for(let r=0;r<8;r++){
         const rowByte = rows[r];
-        for (let bit = 0; bit < 8; bit++) {
-          if (rowByte & (1 << (7 - bit))) {
-            ctx.fillRect(x + bit * scale, y + r * scale, scale, scale);
-          }
+        for(let b=0;b<8;b++){
+          if(rowByte & (1<<(7-b))) ctx.fillRect(x+b*scale, y+r*scale, scale, scale);
         }
       }
     }
-
-    function drawCheckerboard(ctx, cols, rows, size) {
-      const color1 = "#111";
-      const color2 = "#222";
-      for (let y = 0; y < rows; y++) {
-        for (let x = 0; x < cols; x++) {
-          ctx.fillStyle = (x + y) % 2 === 0 ? color1 : color2;
-          ctx.fillRect(x * size, y * size, size, size);
+    function drawCheckerboard(ctx, cols, rows, size){
+      const c1="#111", c2="#222";
+      for(let yy=0;yy<rows;yy++){
+        for(let xx=0;xx<cols;xx++){
+          ctx.fillStyle = (xx+yy)%2===0?c1:c2;
+          ctx.fillRect(xx*size, yy*size, size, size);
         }
       }
     }
-
-    function setupDrawCanvas() {
-      drawCtx.clearRect(0, 0, drawCanvas.width, drawCanvas.height);
+    function setupDrawCanvas(){
+      drawCtx.clearRect(0,0,drawCanvas.width,drawCanvas.height);
       drawCheckerboard(drawCtx, GRID_COLS, GRID_ROWS, CELL_SIZE);
-      drawCtx.fillStyle = fontColor;
-      for (const { glyph, x, y } of placedGlyphs) {
+      for(const {glyph,x,y,color} of placedGlyphs){
+        drawCtx.fillStyle = color;
         drawGlyph(drawCtx, glyph, x, y, 1);
       }
     }
-
-    function redrawPicker() {
+    function redrawPicker(){
       const chosenScale = 3;
-      const cellW = 8 * chosenScale;
-      const cellH = 8 * chosenScale;
-      const maxCols = Math.floor(pickerCanvas.clientWidth / cellW);
-      const rows = Math.ceil(entries.length / maxCols);
-
-      pickerCanvas.style.width = `${maxCols * cellW}px`;
-      pickerCanvas.style.height = `${rows * cellH}px`;
-      pickerCanvas.width = maxCols * cellW;
-      pickerCanvas.height = rows * cellH;
-
+      const cellW = 8*chosenScale, cellH = 8*chosenScale;
+      const sidebarWidth = document.getElementById('sidebar').clientWidth;
+      const maxCols = Math.max(1, Math.floor(sidebarWidth/cellW));
+      const rows   = Math.ceil(entries.length/maxCols);
+      const w = maxCols*cellW, h = rows*cellH;
+      pickerCanvas.width  = w;
+      pickerCanvas.height = h;
+      pickerCanvas.style.width  = w+'px';
+      pickerCanvas.style.height = h+'px';
       pickerCtx.fillStyle = bgColor;
-      pickerCtx.fillRect(0, 0, pickerCanvas.width, pickerCanvas.height);
-
+      pickerCtx.fillRect(0,0,w,h);
       pickerCtx.fillStyle = fontColor;
       glyphPositions = [];
-
-      for (let i = 0; i < entries.length; i++) {
-        const [cp, rows] = entries[i];
-        const col = i % maxCols;
-        const row = Math.floor(i / maxCols);
-        const x = col * cellW;
-        const y = row * cellH;
-        drawGlyph(pickerCtx, rows, x, y, chosenScale);
-        glyphPositions.push({ x, y, scale: chosenScale, cp });
-
-        if (cp === selectedGlyphCodepoint) {
-          pickerCtx.strokeStyle = "#FFF";
-          pickerCtx.lineWidth = 2;
-          pickerCtx.strokeRect(x - 1, y - 1, 8 * chosenScale + 2, 8 * chosenScale + 2);
+      entries.forEach(([cp,rowsData],i)=>{
+        const col = i%maxCols, row = Math.floor(i/maxCols);
+        const x = col*cellW, y = row*cellH;
+        drawGlyph(pickerCtx, rowsData, x, y, chosenScale);
+        glyphPositions.push({x,y,scale:chosenScale,cp});
+        if(cp===selectedGlyphCodepoint){
+          pickerCtx.strokeStyle="#FFF";
+          pickerCtx.lineWidth=2;
+          pickerCtx.strokeRect(x-1,y-1,cellW+2,cellH+2);
         }
-      }
+      });
     }
-
-    let selectedGlyphCodepoint = null;
-
-    pickerCanvas.addEventListener('click', e => {
-      const rect = pickerCanvas.getBoundingClientRect();
-      const scaleX = pickerCanvas.width / rect.width;
-      const scaleY = pickerCanvas.height / rect.height;
-      const mx = (e.clientX - rect.left) * scaleX;
-      const my = (e.clientY - rect.top) * scaleY;
-
-      for (const { x, y, scale, cp } of glyphPositions) {
-        const w = 8 * scale;
-        const h = 8 * scale;
-        if (mx >= x && mx <= x + w && my >= y && my <= y + h) {
-          const hex = cp.toString(16).padStart(2, '0').toUpperCase();
-          selectedGlyph = font8x8_bescii[hex];
-          selectedGlyphCodepoint = cp;
+    const palette = document.getElementById('palette');
+    let selectedSwatch = null;
+    paletteColors.forEach(c=>{
+      const sw = document.createElement('div');
+      sw.className='palette-swatch';
+      sw.style.backgroundColor=c;
+      sw.dataset.color=c;
+      sw.addEventListener('click',()=>{
+        if(selectedSwatch) selectedSwatch.classList.remove('palette-selected');
+        sw.classList.add('palette-selected');
+        selectedSwatch=sw;
+        fontColor=c;
+        redrawPicker();
+      });
+      if(c===fontColor){
+        sw.classList.add('palette-selected');
+        selectedSwatch=sw;
+      }
+      palette.appendChild(sw);
+    });
+    pickerCanvas.addEventListener('click',e=>{
+      const rect=pickerCanvas.getBoundingClientRect();
+      const sx=pickerCanvas.width/rect.width, sy=pickerCanvas.height/rect.height;
+      const mx=(e.clientX-rect.left)*sx, my=(e.clientY-rect.top)*sy;
+      for(const {x,y,scale,cp} of glyphPositions){
+        const w=8*scale, h=8*scale;
+        if(mx>=x&&mx<=x+w&&my>=y&&my<=y+h){
+          selectedGlyph=font8x8_bescii[cp.toString(16).padStart(2,'0').toUpperCase()];
+          selectedGlyphCodepoint=cp;
           redrawPicker();
           break;
         }
       }
     });
-
-    drawCanvas.addEventListener('click', e => {
-      if (!selectedGlyph) return;
-      const rect = drawCanvas.getBoundingClientRect();
-      const scaleX = drawCanvas.width / rect.width;
-      const scaleY = drawCanvas.height / rect.height;
-      const x = Math.floor((e.clientX - rect.left) * scaleX / CELL_SIZE) * CELL_SIZE;
-      const y = Math.floor((e.clientY - rect.top) * scaleY / CELL_SIZE) * CELL_SIZE;
-      drawCtx.fillStyle = fontColor;
-      drawGlyph(drawCtx, selectedGlyph, x, y, 1);
-      placedGlyphs.push({ glyph: selectedGlyph, x, y });
-    });
-
-    drawCanvas.addEventListener('contextmenu', e => {
-      e.preventDefault();
-      const rect = drawCanvas.getBoundingClientRect();
-      const scaleX = drawCanvas.width / rect.width;
-      const scaleY = drawCanvas.height / rect.height;
-      const x = Math.floor((e.clientX - rect.left) * scaleX / CELL_SIZE) * CELL_SIZE;
-      const y = Math.floor((e.clientY - rect.top) * scaleY / CELL_SIZE) * CELL_SIZE;
-
-      placedGlyphs = placedGlyphs.filter(g => !(g.x === x && g.y === y));
+    function paintAtEvent(e){
+      if(!selectedGlyph) return;
+      const rect=drawCanvas.getBoundingClientRect();
+      const sx=drawCanvas.width/rect.width, sy=drawCanvas.height/rect.height;
+      const x=Math.floor((e.clientX-rect.left)*sx/CELL_SIZE)*CELL_SIZE;
+      const y=Math.floor((e.clientY-rect.top )*sy/CELL_SIZE)*CELL_SIZE;
+      placedGlyphs=placedGlyphs.filter(g=>!(g.x===x&&g.y===y));
+      placedGlyphs.push({glyph:selectedGlyph,x,y,color:fontColor});
       setupDrawCanvas();
-    });
-
-    function scaleDrawCanvasToWindow() {
-      const pickerWidth = document.getElementById('sidebar').getBoundingClientRect().width;
-      const availableWidth = window.innerWidth - pickerWidth;
-      const availableHeight = window.innerHeight;
-      const aspectRatio = GRID_COLS / GRID_ROWS;
-
-      let finalW = availableWidth;
-      let finalH = finalW / aspectRatio;
-
-      if (finalH > availableHeight) {
-        finalH = availableHeight;
-        finalW = finalH * aspectRatio;
-
-        console.log("W:" + finalW + ", H:" + finalH);
-      }
-
-      drawCanvas.style.width = `${finalW}px`;
-      drawCanvas.style.height = `${finalH}px`;
     }
-
-    function refresh() {
+    function deleteAtEvent(e){
+      const rect=drawCanvas.getBoundingClientRect();
+      const sx=drawCanvas.width/rect.width, sy=drawCanvas.height/rect.height;
+      const x=Math.floor((e.clientX-rect.left)*sx/CELL_SIZE)*CELL_SIZE;
+      const y=Math.floor((e.clientY-rect.top )*sy/CELL_SIZE)*CELL_SIZE;
+      placedGlyphs=placedGlyphs.filter(g=>!(g.x===x&&g.y===y));
+      setupDrawCanvas();
+    }
+    drawCanvas.addEventListener('contextmenu',e=>e.preventDefault());
+    drawCanvas.addEventListener('mousedown',e=>{
+      if(e.button===0){isPainting=true; paintAtEvent(e)}
+      if(e.button===2){isDeleting=true; deleteAtEvent(e)}
+    });
+    drawCanvas.addEventListener('mousemove',e=>{
+      if(isPainting) paintAtEvent(e);
+      if(isDeleting) deleteAtEvent(e);
+    });
+    window.addEventListener('mouseup',e=>{
+      if(e.button===0) isPainting=false;
+      if(e.button===2) isDeleting=false;
+    });
+    function scaleDrawCanvasToWindow(){
+      const pw=document.getElementById('sidebar').getBoundingClientRect().width;
+      let aw=window.innerWidth-pw, ah=window.innerHeight;
+      const ar=GRID_COLS/GRID_ROWS;
+      let fw=aw, fh=fw/ar;
+      if(fh>ah){fh=ah; fw=fh*ar}
+      drawCanvas.style.width=`${fw}px`;
+      drawCanvas.style.height=`${fh}px`;
+    }
+    function refresh(){
       scaleDrawCanvasToWindow();
       setupDrawCanvas();
       redrawPicker();
     }
-
-    window.addEventListener('load', () => {
-      drawCanvas.width = GRID_COLS * CELL_SIZE;
-      drawCanvas.height = GRID_ROWS * CELL_SIZE;
+    window.addEventListener('load',()=>{
+      drawCanvas.width=GRID_COLS*CELL_SIZE;
+      drawCanvas.height=GRID_ROWS*CELL_SIZE;
       refresh();
     });
-
-    window.addEventListener('resize', refresh);
+    window.addEventListener('resize',refresh);
   </script>
 </body>
 </html>
