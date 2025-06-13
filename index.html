@@ -16,10 +16,14 @@
       width: 100vw;
       height: 100vh;
       overflow: hidden;
+      scrollbar-color: #444 #000;
     }
     #drawCanvas {
-      flex: 1 1 auto;
-      min-width: 0;
+      max-width: calc(100vw - 30%);
+      max-height: 100vh;
+      width: 100%;
+      height: auto;
+      aspect-ratio: 40 / 28;
       background: black;
     }
     canvas {
@@ -54,6 +58,15 @@
       background: #111;
       border-bottom: 2px solid #444;
     }
+    #bg-palette {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(32px, 1fr));
+      gap: 4px;
+      padding: 4px;
+      background: #111;
+      border-bottom: 2px solid #444;
+    }
+
     .palette-swatch {
       width: 100%;
       max-width: 32px;
@@ -89,6 +102,9 @@
         <canvas id="toolWriteKeyboard" class="tool-button" title="Write with Keyboard"></canvas>
       </div>
       <div id="palette"></div>
+      <div id="bg-palette-header" style="color:#777; padding:4px 8px; font-size:0.9em;">
+      </div>
+      <div id="bg-palette" class="palette"></div>
       <canvas id="pickerCanvas"></canvas>
     </div>
   </div>
@@ -100,6 +116,8 @@
     const drawCtx      = drawCanvas.getContext('2d');
     const bgColor      = '#000';
     let fontColor      = '#00ff00';
+    let backgroundColor = '#000000';
+    let selectedBgSwatch  = null;
     const paletteColors = [
       '#000000','#444444','#777770','#ffffff',
       '#9b0000','#ff0000','#009b00','#00ff00',
@@ -157,37 +175,67 @@
       }
     }
     function setupDrawCanvas(){
-      drawCtx.clearRect(0,0,drawCanvas.width,drawCanvas.height);
+      drawCtx.clearRect(0, 0, drawCanvas.width, drawCanvas.height);
       drawCheckerboard(drawCtx, GRID_COLS, GRID_ROWS, CELL_SIZE);
-      for(const {glyph,x,y,color} of placedGlyphs){
+
+      for(const {glyph, x, y, color, bgColor} of placedGlyphs){
+        drawCtx.fillStyle = bgColor;
+        drawCtx.fillRect(x, y, CELL_SIZE, CELL_SIZE);
+
         drawCtx.fillStyle = color;
         drawGlyph(drawCtx, glyph, x, y, 1);
       }
     }
     function redrawPicker(){
       const chosenScale = 3;
-      const cellW = 8*chosenScale, cellH = 8*chosenScale;
+      const cellW = 8 * chosenScale;
+      const cellH = 8 * chosenScale;
       const sidebarWidth = document.getElementById('sidebar').clientWidth;
-      const maxCols = Math.max(1, Math.floor(sidebarWidth/cellW));
-      const rows   = Math.ceil(entries.length/maxCols);
-      const w = maxCols*cellW, h = rows*cellH;
+      const maxCols = Math.max(1, Math.floor(sidebarWidth / cellW));
+      const rows   = Math.ceil(entries.length / maxCols);
+      const w = maxCols * cellW;
+      const h = rows   * cellH;
+
+      // Resize & clear
       pickerCanvas.width  = w;
       pickerCanvas.height = h;
-      pickerCanvas.style.width  = w+'px';
-      pickerCanvas.style.height = h+'px';
+      pickerCanvas.style.width  = w + 'px';
+      pickerCanvas.style.height = h + 'px';
       pickerCtx.fillStyle = bgColor;
-      pickerCtx.fillRect(0,0,w,h);
-      pickerCtx.fillStyle = fontColor;
+      pickerCtx.fillRect(0, 0, w, h);
+
       glyphPositions = [];
-      entries.forEach(([cp,rowsData],i)=>{
-        const col = i%maxCols, row = Math.floor(i/maxCols);
-        const x = col*cellW, y = row*cellH;
+
+      entries.forEach(([cp, rowsData], i) => {
+        const col = i % maxCols;
+        const row = Math.floor(i / maxCols);
+        const x = col * cellW;
+        const y = row * cellH;
+
+        // 1) cell background
+        pickerCtx.fillStyle = backgroundColor;
+        pickerCtx.fillRect(x, y, cellW, cellH);
+
+        // 2) glyph
+        pickerCtx.fillStyle = fontColor;
         drawGlyph(pickerCtx, rowsData, x, y, chosenScale);
-        glyphPositions.push({x,y,scale:chosenScale,cp});
-        if(cp===selectedGlyphCodepoint){
-          pickerCtx.strokeStyle="#FFF";
-          pickerCtx.lineWidth=2;
-          pickerCtx.strokeRect(x-1,y-1,cellW+2,cellH+2);
+
+        // record for hit-testing
+        glyphPositions.push({ x, y, scale: chosenScale, cp });
+
+        // 3) selector border if chosen
+        if (cp === selectedGlyphCodepoint) {
+          // compute luminance (0–255)
+          const hex = backgroundColor.slice(1);
+          const r = parseInt(hex.substr(0,2), 16);
+          const g = parseInt(hex.substr(2,2), 16);
+          const b = parseInt(hex.substr(4,2), 16);
+          const lum = 0.299 * r + 0.587 * g + 0.114 * b;
+
+          // pick black on light bg, white on dark
+          pickerCtx.strokeStyle = (lum > 128) ? '#000' : '#FFF';
+          pickerCtx.lineWidth = 2;
+          pickerCtx.strokeRect(x - 1, y - 1, cellW + 2, cellH + 2);
         }
       });
     }
@@ -211,6 +259,27 @@
       }
       palette.appendChild(sw);
     });
+
+    const bgPalette = document.getElementById('bg-palette');
+    paletteColors.forEach(c => {
+      const sw = document.createElement('div');
+      sw.className = 'palette-swatch';
+      sw.style.backgroundColor = c;
+      sw.dataset.color = c;
+      sw.addEventListener('click', () => {
+        if (selectedBgSwatch) selectedBgSwatch.classList.remove('palette-selected');
+        sw.classList.add('palette-selected');
+        selectedBgSwatch = sw;
+        backgroundColor = c;
+        redrawPicker();
+      });
+      if (c === backgroundColor) {
+        sw.classList.add('palette-selected');
+        selectedBgSwatch = sw;
+      }
+      bgPalette.appendChild(sw);
+    });
+
     pickerCanvas.addEventListener('click',e=>{
       const rect=pickerCanvas.getBoundingClientRect();
       const sx=pickerCanvas.width/rect.width, sy=pickerCanvas.height/rect.height;
@@ -232,7 +301,12 @@
       const x=Math.floor((e.clientX-rect.left)*sx/CELL_SIZE)*CELL_SIZE;
       const y=Math.floor((e.clientY-rect.top )*sy/CELL_SIZE)*CELL_SIZE;
       placedGlyphs=placedGlyphs.filter(g=>!(g.x===x&&g.y===y));
-      placedGlyphs.push({glyph:selectedGlyph,x,y,color:fontColor});
+      placedGlyphs.push({
+        glyph: selectedGlyph,
+        x, y,
+        color: fontColor,
+        bgColor: backgroundColor
+      });
       setupDrawCanvas();
     }
     function deleteAtEvent(e){
