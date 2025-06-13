@@ -175,11 +175,24 @@
       }
     }
     function setupDrawCanvas(){
-      drawCtx.clearRect(0, 0, drawCanvas.width, drawCanvas.height);
-      drawCheckerboard(drawCtx, GRID_COLS, GRID_ROWS, CELL_SIZE);
+      drawCtx.fillStyle = bgColor;
+      drawCtx.fillRect(0, 0, drawCanvas.width, drawCanvas.height);
 
-      for(const {glyph, x, y, color, bgColor} of placedGlyphs){
-        drawCtx.fillStyle = bgColor;
+      drawCtx.strokeStyle = '#444';
+      drawCtx.lineWidth = 0.5;
+      drawCtx.beginPath();
+      for(let x = 0; x <= drawCanvas.width; x += CELL_SIZE){
+        drawCtx.moveTo(x + 0.5, 0);
+        drawCtx.lineTo(x + 0.5, drawCanvas.height);
+      }
+      for(let y = 0; y <= drawCanvas.height; y += CELL_SIZE){
+        drawCtx.moveTo(0, y + 0.5);
+        drawCtx.lineTo(drawCanvas.width, y + 0.5);
+      }
+      drawCtx.stroke();
+
+      for(const { glyph, x, y, color, bgColor: cellBg } of placedGlyphs){
+        drawCtx.fillStyle = cellBg;
         drawCtx.fillRect(x, y, CELL_SIZE, CELL_SIZE);
 
         drawCtx.fillStyle = color;
@@ -196,7 +209,6 @@
       const w = maxCols * cellW;
       const h = rows   * cellH;
 
-      // Resize & clear
       pickerCanvas.width  = w;
       pickerCanvas.height = h;
       pickerCanvas.style.width  = w + 'px';
@@ -212,27 +224,21 @@
         const x = col * cellW;
         const y = row * cellH;
 
-        // 1) cell background
         pickerCtx.fillStyle = backgroundColor;
         pickerCtx.fillRect(x, y, cellW, cellH);
 
-        // 2) glyph
         pickerCtx.fillStyle = fontColor;
         drawGlyph(pickerCtx, rowsData, x, y, chosenScale);
 
-        // record for hit-testing
         glyphPositions.push({ x, y, scale: chosenScale, cp });
 
-        // 3) selector border if chosen
         if (cp === selectedGlyphCodepoint) {
-          // compute luminance (0–255)
           const hex = backgroundColor.slice(1);
           const r = parseInt(hex.substr(0,2), 16);
           const g = parseInt(hex.substr(2,2), 16);
           const b = parseInt(hex.substr(4,2), 16);
           const lum = 0.299 * r + 0.587 * g + 0.114 * b;
 
-          // pick black on light bg, white on dark
           pickerCtx.strokeStyle = (lum > 128) ? '#000' : '#FFF';
           pickerCtx.lineWidth = 2;
           pickerCtx.strokeRect(x - 1, y - 1, cellW + 2, cellH + 2);
