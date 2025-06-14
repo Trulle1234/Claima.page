@@ -100,6 +100,7 @@
       <div id="tools">
         <canvas id="toolPlaceGlyph" class="tool-button" title="Place Glyph"></canvas>
         <canvas id="toolWriteKeyboard" class="tool-button" title="Write with Keyboard"></canvas>
+        <canvas id="toolFillBucket" class="tool-button" title="Fill Area"></canvas>
       </div>
       <div id="palette"></div>
       <div id="bg-palette-header" style="color:#777; padding:4px 8px; font-size:0.9em;">
@@ -168,7 +169,8 @@
       .sort((a,b) => a[0]-b[0]);
     const toolButtons = {
       paint: document.getElementById('toolPlaceGlyph'),
-      write: document.getElementById('toolWriteKeyboard')
+      write: document.getElementById('toolWriteKeyboard'),
+      fill: document.getElementById('toolFillBucket')
     };
     function setActiveTool(tool){
       for(let k in toolButtons) toolButtons[k].classList.remove('tool-selected');
@@ -180,6 +182,7 @@
     const toolCtxWrite = toolButtons.write.getContext('2d');
     const paintbrush = font8x8_bescii[0xF019] || Object.values(font8x8_bescii)[0];
     const pencil     = font8x8_bescii[0xE000] || Object.values(font8x8_bescii)[1];
+    const bucket     = font8x8_bescii[0xF014] || Object.values(font8x8_bescii)[2];
     toolCtxPlace.fillStyle = '#0F0'; drawGlyph(toolCtxPlace, paintbrush,    0,0,3);
     toolCtxWrite.fillStyle = '#0F0'; drawGlyph(toolCtxWrite, pencil,         0,0,3);
     toolButtons.paint.addEventListener('click', () => {
@@ -193,6 +196,13 @@
       setActiveTool('write');
       writeMode = true;
       pickerCanvas.style.display = 'none'; // Hide picker immediately
+    });
+
+    toolButtons.fill.addEventListener('click', () => {
+      setActiveTool('fill');
+      writeMode = false;
+      cursorX = cursorY = null;
+      pickerCanvas.style.display = 'block';
     });
 
     setActiveTool('paint');
@@ -213,6 +223,61 @@
         }
       }
     }
+
+    function floodFill(startCol, startRow) {
+      const startX = startCol * CELL_SIZE;
+      const startY = startRow * CELL_SIZE;
+
+      // Find the glyph at start position
+      const target = placedGlyphs.find(g => g.x === startX && g.y === startY);
+      const targetGlyph = target?.glyph;
+      const targetColor = target?.color;
+      const targetBg    = target?.bgColor;
+
+      // If no target or already the selected glyph, stop
+      if (!targetGlyph || selectedGlyph === targetGlyph &&
+          fontColor === targetColor && backgroundColor === targetBg) return;
+
+      const visited = new Set();
+      const queue = [[startCol, startRow]];
+
+      while (queue.length) {
+        const [col, row] = queue.shift();
+        const key = `${col},${row}`;
+        if (visited.has(key)) continue;
+        visited.add(key);
+
+        const x = col * CELL_SIZE;
+        const y = row * CELL_SIZE;
+
+        const match = placedGlyphs.find(g => g.x === x && g.y === y);
+        if (!match) continue;
+
+        const sameGlyph = match.glyph === targetGlyph;
+        const sameColor = match.color === targetColor;
+        const sameBg    = match.bgColor === targetBg;
+
+        if (!sameGlyph || !sameColor || !sameBg) continue;
+
+        // Replace
+        placedGlyphs = placedGlyphs.filter(g => !(g.x === x && g.y === y));
+        placedGlyphs.push({
+          glyph: selectedGlyph,
+          x, y,
+          color: fontColor,
+          bgColor: backgroundColor
+        });
+
+        // Expand to neighbors
+        if (col > 0) queue.push([col - 1, row]);
+        if (col < GRID_COLS - 1) queue.push([col + 1, row]);
+        if (row > 0) queue.push([col, row - 1]);
+        if (row < GRID_ROWS - 1) queue.push([col, row + 1]);
+      }
+
+      setupDrawCanvas();
+    }
+
     function setupDrawCanvas(){
       drawCtx.fillStyle = bgColor;
       drawCtx.fillRect(0, 0, drawCanvas.width, drawCanvas.height);
@@ -394,6 +459,14 @@
         cursorX = col;
         cursorY = row;
         writeStartX = col;
+      if (toolButtons.fill.classList.contains('tool-selected') && e.button === 0) {
+        const rect = drawCanvas.getBoundingClientRect();
+        const sx = drawCanvas.width / rect.width;
+        const sy = drawCanvas.height / rect.height;
+        const col = Math.floor((e.clientX - rect.left) * sx / CELL_SIZE);
+        const row = Math.floor((e.clientY - rect.top) * sy / CELL_SIZE);
+        floodFill(col, row);
+      }
       }
 
     });
