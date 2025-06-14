@@ -110,6 +110,7 @@
   </div>
   <script type="module">
     import { font8x8_bescii } from './bescii.js';
+
     const pickerCanvas = document.getElementById('pickerCanvas');
     const pickerCtx    = pickerCanvas.getContext('2d');
     const drawCanvas   = document.getElementById('drawCanvas');
@@ -135,6 +136,18 @@
     let isPainting             = false;
     let isDeleting             = false;
     let selectedGlyphCodepoint = null;
+
+    let writeMode = false;
+    let cursorX = null;
+    let cursorY = null;
+
+    let showCursor = true;
+    setInterval(() => {
+      showCursor = !showCursor;
+      setupDrawCanvas();
+    }, 500);
+
+
     const entries = Object.entries(font8x8_bescii)
       .map(([hexCp, rows]) => [parseInt(hexCp, 16), rows])
       .sort((a,b) => a[0]-b[0]);
@@ -154,8 +167,17 @@
     const pencil     = font8x8_bescii[0xE000] || Object.values(font8x8_bescii)[1];
     toolCtxPlace.fillStyle = '#0F0'; drawGlyph(toolCtxPlace, paintbrush,    0,0,3);
     toolCtxWrite.fillStyle = '#0F0'; drawGlyph(toolCtxWrite, pencil,         0,0,3);
-    toolButtons.paint.addEventListener('click', ()=>setActiveTool('paint'));
-    toolButtons.write.addEventListener('click', ()=>setActiveTool('write'));
+    toolButtons.paint.addEventListener('click', () => {
+      setActiveTool('paint');
+      writeMode = false;
+      cursorX = cursorY = null;
+    });
+
+    toolButtons.write.addEventListener('click', () => {
+      setActiveTool('write');
+      writeMode = true;
+    });
+
     setActiveTool('paint');
     function drawGlyph(ctx, rows, x, y, scale=1){
       for(let r=0;r<8;r++){
@@ -197,6 +219,18 @@
 
         drawCtx.fillStyle = color;
         drawGlyph(drawCtx, glyph, x, y, 1);
+      }
+
+      // Draw blinking write-mode cursor
+        if (writeMode && cursorX !== null && cursorY !== null && showCursor) {
+          drawCtx.strokeStyle = '#0F0';
+          drawCtx.lineWidth = 1;
+          drawCtx.strokeRect(
+            cursorX * CELL_SIZE + 0.5,
+            cursorY * CELL_SIZE + 0.5,
+            CELL_SIZE - 1,
+            CELL_SIZE - 1
+          );
       }
     }
     function redrawPicker(){
@@ -327,6 +361,17 @@
     drawCanvas.addEventListener('mousedown',e=>{
       if(e.button===0){isPainting=true; paintAtEvent(e)}
       if(e.button===2){isDeleting=true; deleteAtEvent(e)}
+      if (writeMode && e.button === 0) {
+        const rect = drawCanvas.getBoundingClientRect();
+        const sx = drawCanvas.width / rect.width;
+        const sy = drawCanvas.height / rect.height;
+        const col = Math.floor((e.clientX - rect.left) * sx / CELL_SIZE);
+        const row = Math.floor((e.clientY - rect.top) * sy / CELL_SIZE);
+        cursorX = col;
+        cursorY = row;
+        writeStartX = col;
+      }
+
     });
     drawCanvas.addEventListener('mousemove',e=>{
       if(isPainting) paintAtEvent(e);
@@ -350,6 +395,46 @@
       setupDrawCanvas();
       redrawPicker();
     }
+
+    let writeStartX = null;
+
+    window.addEventListener('keydown', e => {
+      if (!writeMode || cursorX === null || cursorY === null) return;
+
+      // Enter key = next line
+      if (e.key === 'Enter') {
+        cursorY++;
+        cursorX = writeStartX;
+        return;
+      }
+
+      // Only allow printable characters
+      if (e.key.length !== 1) return;
+
+      const cp = e.key.codePointAt(0); // <-- use numeric index directly
+      const glyph = font8x8_bescii[cp];
+
+      if (!glyph) return; // skip if glyph not in font
+
+      if (cursorX >= GRID_COLS || cursorY >= GRID_ROWS) return;
+
+      const x = cursorX * CELL_SIZE;
+      const y = cursorY * CELL_SIZE;
+
+      placedGlyphs = placedGlyphs.filter(g => !(g.x === x && g.y === y));
+      placedGlyphs.push({
+        glyph,
+        x,
+        y,
+        color: fontColor,
+        bgColor: backgroundColor
+      });
+
+      setupDrawCanvas();
+      cursorX++;
+    });
+
+
     window.addEventListener('load',()=>{
       drawCanvas.width=GRID_COLS*CELL_SIZE;
       drawCanvas.height=GRID_ROWS*CELL_SIZE;
