@@ -142,10 +142,25 @@
     let cursorY = null;
 
     let showCursor = true;
-    setInterval(() => {
-      showCursor = !showCursor;
+    let cursorTimer = null;
+
+    function startCursorBlinking() {
+      if (cursorTimer) clearInterval(cursorTimer);
+      showCursor = true;
+      cursorTimer = setInterval(() => {
+        showCursor = !showCursor;
+        setupDrawCanvas();
+      }, 500);
+    }
+
+    function stopCursorBlinkingTemporarily() {
+      showCursor = true;
+      clearInterval(cursorTimer);
       setupDrawCanvas();
-    }, 500);
+      setTimeout(startCursorBlinking, 1000); // Resume blinking after 1 second
+    }
+
+    startCursorBlinking();
 
 
     const entries = Object.entries(font8x8_bescii)
@@ -171,11 +186,13 @@
       setActiveTool('paint');
       writeMode = false;
       cursorX = cursorY = null;
+      pickerCanvas.style.display = 'block'; // Show picker immediately
     });
 
     toolButtons.write.addEventListener('click', () => {
       setActiveTool('write');
       writeMode = true;
+      pickerCanvas.style.display = 'none'; // Hide picker immediately
     });
 
     setActiveTool('paint');
@@ -221,19 +238,25 @@
         drawGlyph(drawCtx, glyph, x, y, 1);
       }
 
-      // Draw blinking write-mode cursor
-        if (writeMode && cursorX !== null && cursorY !== null && showCursor) {
-          drawCtx.strokeStyle = '#0F0';
-          drawCtx.lineWidth = 1;
-          drawCtx.strokeRect(
-            cursorX * CELL_SIZE + 0.5,
-            cursorY * CELL_SIZE + 0.5,
-            CELL_SIZE - 1,
-            CELL_SIZE - 1
-          );
+      if (writeMode && cursorX !== null && cursorY !== null && showCursor) {
+        const x = cursorX * CELL_SIZE;
+        const y = cursorY * CELL_SIZE;
+        const cursorGlyph = font8x8_bescii[0xE079];
+
+        if (cursorGlyph) {
+          drawCtx.fillStyle = fontColor;
+          drawGlyph(drawCtx, cursorGlyph, x, y, 1);
+        }
       }
     }
-    function redrawPicker(){
+    function redrawPicker() {
+      if (writeMode) {
+        pickerCanvas.style.display = 'none';
+        return;
+      } else {
+        pickerCanvas.style.display = 'block';
+      }
+
       const chosenScale = 3;
       const cellW = 8 * chosenScale;
       const cellH = 8 * chosenScale;
@@ -279,6 +302,7 @@
         }
       });
     }
+
     const palette = document.getElementById('palette');
     let selectedSwatch = null;
     paletteColors.forEach(c=>{
@@ -359,7 +383,7 @@
     }
     drawCanvas.addEventListener('contextmenu',e=>e.preventDefault());
     drawCanvas.addEventListener('mousedown',e=>{
-      if(e.button===0){isPainting=true; paintAtEvent(e)}
+      if(e.button === 0 && !writeMode){ isPainting = true; paintAtEvent(e); }
       if(e.button===2){isDeleting=true; deleteAtEvent(e)}
       if (writeMode && e.button === 0) {
         const rect = drawCanvas.getBoundingClientRect();
@@ -399,22 +423,44 @@
     let writeStartX = null;
 
     window.addEventListener('keydown', e => {
+      
+      stopCursorBlinkingTemporarily();
+
       if (!writeMode || cursorX === null || cursorY === null) return;
 
-      // Enter key = next line
       if (e.key === 'Enter') {
         cursorY++;
         cursorX = writeStartX;
         return;
       }
 
-      // Only allow printable characters
+      if (e.key === 'Backspace') {
+        if (cursorX > 0) {
+          cursorX--;
+          const x = cursorX * CELL_SIZE;
+          const y = cursorY * CELL_SIZE;
+          placedGlyphs = placedGlyphs.filter(g => !(g.x === x && g.y === y));
+          setupDrawCanvas();
+        }
+        e.preventDefault();
+        return;
+      }
+
+      if (e.key === 'Delete') {
+        const x = cursorX * CELL_SIZE;
+        const y = cursorY * CELL_SIZE;
+        placedGlyphs = placedGlyphs.filter(g => !(g.x === x && g.y === y));
+        setupDrawCanvas();
+        e.preventDefault();
+        return;
+      }
+
       if (e.key.length !== 1) return;
 
-      const cp = e.key.codePointAt(0); // <-- use numeric index directly
+      const cp = e.key.codePointAt(0);
       const glyph = font8x8_bescii[cp];
 
-      if (!glyph) return; // skip if glyph not in font
+      if (!glyph) return;
 
       if (cursorX >= GRID_COLS || cursorY >= GRID_ROWS) return;
 
@@ -433,7 +479,6 @@
       setupDrawCanvas();
       cursorX++;
     });
-
 
     window.addEventListener('load',()=>{
       drawCanvas.width=GRID_COLS*CELL_SIZE;
