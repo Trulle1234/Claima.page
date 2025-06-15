@@ -1,0 +1,87 @@
+    html, body {
+      margin: 0; padding: 0;
+      background: #000;
+      width: 100%; height: 100%;
+    }
+    #app {
+      display: flex;
+      justify-content: flex-start;
+      align-items: center;
+      width: 100vw;
+      height: 100vh;
+      overflow: hidden;
+      scrollbar-color: #444 #000;
+    }
+    #drawCanvas {
+      max-width: calc(100vw - 30%);
+      max-height: 100vh;
+      width: 100%;
+      height: auto;
+      aspect-ratio: 40 / 28;
+      background: black;
+    }
+    canvas {
+      display: block;
+      image-rendering: pixelated;
+    }
+    #sidebar {
+      width: 30%;
+      flex: 0 0 30%;
+      height: 100vh;
+      display: flex;
+      flex-direction: column;
+      border-left: 2px solid #444;
+      justify-content: flex-start;
+      align-self: flex-start;
+      overflow-y: auto;
+    }
+    #tools {
+      height: 60px;
+      display: flex;
+      border-bottom: 2px solid #444;
+      align-items: center;
+      justify-content: center;
+      gap: 10px;
+      background: #111;
+    }
+    #palette {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(32px, 1fr));
+      gap: 4px;
+      padding: 4px;
+      background: #111;
+      border-bottom: 2px solid #444;
+    }
+    #bg-palette {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(32px, 1fr));
+      gap: 4px;
+      padding: 4px;
+      background: #111;
+      border-bottom: 2px solid #444;
+    }
+
+    .palette-swatch {
+      width: 100%;
+      max-width: 32px;
+      aspect-ratio: 1;
+      cursor: pointer;
+      border: 2px solid transparent;
+    }
+    .palette-selected {
+      border-color: white;
+    }
+    .tool-button {
+      width: 24px;
+      height: 24px;
+      cursor: pointer;
+      border: 2px solid transparent;
+    }
+    .tool-selected {
+      border-color: white;
+    }
+    #pickerCanvas {
+      flex: 0 0 auto;
+      background: black;
+      image-rendering: pixelated;
+    }

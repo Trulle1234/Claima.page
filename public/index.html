@@ -1,0 +1,25 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <title>Pages Website</title>
+  <link rel="stylesheet" href="../src/css/style.css">
+</head>
+<body>
+  <div id="app">
+    <canvas id="drawCanvas"></canvas>
+    <div id="sidebar">
+      <div id="tools">
+        <canvas id="toolPlaceGlyph" class="tool-button" title="Place Glyph"></canvas>
+        <canvas id="toolWriteKeyboard" class="tool-button" title="Write with Keyboard"></canvas>
+        <canvas id="toolFillBucket" class="tool-button" title="Fill Area"></canvas>
+      </div>
+      <div id="palette"></div>
+      <div id="bg-palette-header" style="color:#777; padding:4px 8px; font-size:0.9em;"></div>
+      <div id="bg-palette" class="palette"></div>
+      <canvas id="pickerCanvas"></canvas>
+    </div>
+  </div>
+  <script type="module" src="../src/js/main.js"></script>
+</body>
+</html>
