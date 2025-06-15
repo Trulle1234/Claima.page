@@ -180,9 +180,18 @@
     toolButtons.write.width = toolButtons.write.height = 24;
     const toolCtxPlace = toolButtons.paint.getContext('2d');
     const toolCtxWrite = toolButtons.write.getContext('2d');
+    toolButtons.fill.width = toolButtons.fill.height = 24;
+
     const paintbrush = font8x8_bescii[0xF019] || Object.values(font8x8_bescii)[0];
-    const pencil     = font8x8_bescii[0xE000] || Object.values(font8x8_bescii)[1];
-    const bucket     = font8x8_bescii[0xF014] || Object.values(font8x8_bescii)[2];
+
+    const pencil = font8x8_bescii[0xE000] || Object.values(font8x8_bescii)[1];
+
+    const bucket = font8x8_bescii[0xF014] || Object.values(font8x8_bescii)[2];
+    toolButtons.fill.width = toolButtons.fill.height = 24;
+    const toolCtxFill = toolButtons.fill.getContext('2d');
+    toolCtxFill.fillStyle = '#0F0';
+    drawGlyph(toolCtxFill, bucket, 0, 0, 3);
+
     toolCtxPlace.fillStyle = '#0F0'; drawGlyph(toolCtxPlace, paintbrush,    0,0,3);
     toolCtxWrite.fillStyle = '#0F0'; drawGlyph(toolCtxWrite, pencil,         0,0,3);
     toolButtons.paint.addEventListener('click', () => {
@@ -228,15 +237,10 @@
       const startX = startCol * CELL_SIZE;
       const startY = startRow * CELL_SIZE;
 
-      // Find the glyph at start position
       const target = placedGlyphs.find(g => g.x === startX && g.y === startY);
-      const targetGlyph = target?.glyph;
-      const targetColor = target?.color;
-      const targetBg    = target?.bgColor;
-
-      // If no target or already the selected glyph, stop
-      if (!targetGlyph || selectedGlyph === targetGlyph &&
-          fontColor === targetColor && backgroundColor === targetBg) return;
+      const targetGlyph = target?.glyph ?? null;
+      const targetColor = target?.color ?? null;
+      const targetBg = target?.bgColor ?? null;
 
       const visited = new Set();
       const queue = [[startCol, startRow]];
@@ -250,16 +254,17 @@
         const x = col * CELL_SIZE;
         const y = row * CELL_SIZE;
 
-        const match = placedGlyphs.find(g => g.x === x && g.y === y);
-        if (!match) continue;
+        const existing = placedGlyphs.find(g => g.x === x && g.y === y);
+        const glyph = existing?.glyph ?? null;
+        const color = existing?.color ?? null;
+        const bg    = existing?.bgColor ?? null;
 
-        const sameGlyph = match.glyph === targetGlyph;
-        const sameColor = match.color === targetColor;
-        const sameBg    = match.bgColor === targetBg;
+        const sameGlyph = glyph === targetGlyph;
+        const sameColor = color === targetColor;
+        const sameBg    = bg === targetBg;
 
-        if (!sameGlyph || !sameColor || !sameBg) continue;
+        if (!sameGlyph || color !== targetColor || bg !== targetBg) continue;
 
-        // Replace
         placedGlyphs = placedGlyphs.filter(g => !(g.x === x && g.y === y));
         placedGlyphs.push({
           glyph: selectedGlyph,
@@ -268,7 +273,6 @@
           bgColor: backgroundColor
         });
 
-        // Expand to neighbors
         if (col > 0) queue.push([col - 1, row]);
         if (col < GRID_COLS - 1) queue.push([col + 1, row]);
         if (row > 0) queue.push([col, row - 1]);
@@ -281,6 +285,27 @@
     function setupDrawCanvas(){
       drawCtx.fillStyle = bgColor;
       drawCtx.fillRect(0, 0, drawCanvas.width, drawCanvas.height);
+
+      for(const { glyph, x, y, color, bgColor: cellBg } of placedGlyphs){
+        drawCtx.fillStyle = cellBg;
+        drawCtx.fillRect(x, y, CELL_SIZE, CELL_SIZE);
+
+        drawCtx.fillStyle = color;
+      if (glyph) {
+        drawGlyph(drawCtx, glyph, x, y, 1);
+}
+      }
+
+      if (writeMode && cursorX !== null && cursorY !== null && showCursor) {
+        const x = cursorX * CELL_SIZE;
+        const y = cursorY * CELL_SIZE;
+        const cursorGlyph = font8x8_bescii[0xE079];
+
+        if (cursorGlyph) {
+          drawCtx.fillStyle = fontColor;
+          drawGlyph(drawCtx, cursorGlyph, x, y, 1);
+        }
+      }
 
       drawCtx.strokeStyle = '#444';
       drawCtx.lineWidth = 0.5;
@@ -295,24 +320,6 @@
       }
       drawCtx.stroke();
 
-      for(const { glyph, x, y, color, bgColor: cellBg } of placedGlyphs){
-        drawCtx.fillStyle = cellBg;
-        drawCtx.fillRect(x, y, CELL_SIZE, CELL_SIZE);
-
-        drawCtx.fillStyle = color;
-        drawGlyph(drawCtx, glyph, x, y, 1);
-      }
-
-      if (writeMode && cursorX !== null && cursorY !== null && showCursor) {
-        const x = cursorX * CELL_SIZE;
-        const y = cursorY * CELL_SIZE;
-        const cursorGlyph = font8x8_bescii[0xE079];
-
-        if (cursorGlyph) {
-          drawCtx.fillStyle = fontColor;
-          drawGlyph(drawCtx, cursorGlyph, x, y, 1);
-        }
-      }
     }
     function redrawPicker() {
       if (writeMode) {
@@ -447,29 +454,47 @@
       setupDrawCanvas();
     }
     drawCanvas.addEventListener('contextmenu',e=>e.preventDefault());
-    drawCanvas.addEventListener('mousedown',e=>{
-      if(e.button === 0 && !writeMode){ isPainting = true; paintAtEvent(e); }
-      if(e.button===2){isDeleting=true; deleteAtEvent(e)}
+    drawCanvas.addEventListener('mousedown', e => {
+      const rect = drawCanvas.getBoundingClientRect();
+      const sx = drawCanvas.width / rect.width;
+      const sy = drawCanvas.height / rect.height;
+      const col = Math.floor((e.clientX - rect.left) * sx / CELL_SIZE);
+      const row = Math.floor((e.clientY - rect.top) * sy / CELL_SIZE);
+      const x = col * CELL_SIZE;
+      const y = row * CELL_SIZE;
+
+      if (toolButtons.fill.classList.contains('tool-selected') && e.button === 0) {
+        floodFill(col, row);
+        return;
+      }
+
       if (writeMode && e.button === 0) {
-        const rect = drawCanvas.getBoundingClientRect();
-        const sx = drawCanvas.width / rect.width;
-        const sy = drawCanvas.height / rect.height;
-        const col = Math.floor((e.clientX - rect.left) * sx / CELL_SIZE);
-        const row = Math.floor((e.clientY - rect.top) * sy / CELL_SIZE);
         cursorX = col;
         cursorY = row;
         writeStartX = col;
-      if (toolButtons.fill.classList.contains('tool-selected') && e.button === 0) {
-        const rect = drawCanvas.getBoundingClientRect();
-        const sx = drawCanvas.width / rect.width;
-        const sy = drawCanvas.height / rect.height;
-        const col = Math.floor((e.clientX - rect.left) * sx / CELL_SIZE);
-        const row = Math.floor((e.clientY - rect.top) * sy / CELL_SIZE);
-        floodFill(col, row);
+        return;
       }
+
+      if (e.button === 0 && !writeMode) {
+        isPainting = true;
+        placedGlyphs = placedGlyphs.filter(g => !(g.x === x && g.y === y));
+        placedGlyphs.push({
+          glyph: selectedGlyph,
+          x, y,
+          color: fontColor,
+          bgColor: backgroundColor
+        });
+        setupDrawCanvas();
+      }
+
+      if (e.button === 2 && !toolButtons.fill.classList.contains('tool-selected')) {
+        isDeleting = true;
+        placedGlyphs = placedGlyphs.filter(g => !(g.x === x && g.y === y));
+        setupDrawCanvas();
       }
 
     });
+
     drawCanvas.addEventListener('mousemove',e=>{
       if(isPainting) paintAtEvent(e);
       if(isDeleting) deleteAtEvent(e);
