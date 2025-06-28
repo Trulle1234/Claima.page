@@ -5,6 +5,15 @@ let pickerCanvas, pickerCtx, entries;
 let glyphPositions = [];
 export let selectedGlyphCp = null;
 
+export function getSelectedGlyphIndex() {
+  if (!selectedGlyphCp) return  null;
+  return selectedGlyphCp.toString(16).padStart(2,'0').toUpperCase();
+}
+
+export function getSelectedGlyph(fontData) {
+  return fontData[getSelectedGlyphIndex()];
+}
+
 export function initPicker(fontData) {
   pickerCanvas = document.getElementById('pickerCanvas');
   pickerCtx    = pickerCanvas.getContext('2d');

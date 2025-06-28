@@ -1,44 +1,60 @@
 import { getPlacedGlyphs, setPlacedGlyphs, refresh } from './render.js';
 import { CELL_SIZE, GRID_COLS, GRID_ROWS } from './settings.js';
+import { getSelectedGlyph } from './picker.js';
+import { fontColor, backgroundColor } from './palette.js';
 
-export function initFloodFill() {
+export function initFloodFill(fontdata) {
   document.addEventListener('floodfill', ({ detail: { col, row } }) => {
-    floodFill(col, row);
+    floodFill(col, row, fontdata);
   });
 }
 
-function floodFill(startCol, startRow) {
-  let placed = getPlacedGlyphs();
-  const startX = startCol * CELL_SIZE, startY = startRow * CELL_SIZE;
-  const target = placed.find(g => g.x === startX && g.y === startY) || {};
-  const { glyph: tgtGlyph=null, color: tgtColor=null, bgColor: tgtBg=null } = target;
+function floodFill(startCol, startRow, fontdata) {
+      let placed = getPlacedGlyphs();
+      const startX = startCol * CELL_SIZE;
+      const startY = startRow * CELL_SIZE;
 
-  const visited = new Set();
-  const queue = [[startCol, startRow]];
+      const target = placed.find(g => g.x === startX && g.y === startY);
+      const targetGlyph = target?.glyph ?? null;
+      const targetColor = target?.color ?? null;
+      const targetBg = target?.bgColor ?? null;
 
-  while (queue.length) {
-    const [c, r] = queue.shift();
-    const key = `${c},${r}`;
-    if (visited.has(key)) continue;
-    visited.add(key);
+      const visited = new Set();
+      const queue = [[startCol, startRow]];
 
-    const x = c * CELL_SIZE, y = r * CELL_SIZE;
-    const existing = placed.find(g => g.x===x&&g.y===y) || {};
-    if (existing.glyph !== tgtGlyph || existing.color !== tgtColor || existing.bgColor !== tgtBg) continue;
+      while (queue.length) {
+        const [col, row] = queue.shift();
+        const key = `${col},${row}`;
+        if (visited.has(key)) continue;
+        visited.add(key);
 
-    // replace
-    placed = placed.filter(g=>!(g.x===x&&g.y===y));
-    placed.push({
-      glyph: existing.glyph,
-      x, y,
-      color: fontColor,
-      bgColor: backgroundColor
-    });
+        const x = col * CELL_SIZE;
+        const y = row * CELL_SIZE;
 
-    [[c-1,r],[c+1,r],[c,r-1],[c,r+1]].forEach(([nc,nr]) => {
-      if (nc>=0 && nr>=0 && nc<GRID_COLS && nr<GRID_ROWS) queue.push([nc,nr]);
-    });
-  }
+        const existing = placed.find(g => g.x === x && g.y === y);
+        const glyph = existing?.glyph ?? null;
+        const color = existing?.color ?? null;
+        const bg    = existing?.bgColor ?? null;
+
+        const sameGlyph = glyph === targetGlyph;
+        const sameColor = color === targetColor;
+        const sameBg    = bg === targetBg;
+
+        if (!sameGlyph || color !== targetColor || bg !== targetBg) continue;
+
+        placed = placed.filter(g => !(g.x === x && g.y === y));
+        placed.push({
+          glyph: getSelectedGlyph(fontdata),
+          x, y,
+          color: fontColor,
+          bgColor: backgroundColor
+        });
+
+        if (col > 0) queue.push([col - 1, row]);
+        if (col < GRID_COLS - 1) queue.push([col + 1, row]);
+        if (row > 0) queue.push([col, row - 1]);
+        if (row < GRID_ROWS - 1) queue.push([col, row + 1]);
+      }
 
   setPlacedGlyphs(placed);
   refresh();

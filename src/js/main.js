@@ -10,7 +10,7 @@ window.addEventListener('load', () => {
   initTools(font8x8_bescii);
   initPalette();
   initPicker(font8x8_bescii);
-  initFloodFill();
+  initFloodFill(font8x8_bescii);
   scaleDrawCanvasToWindow();
 });
 

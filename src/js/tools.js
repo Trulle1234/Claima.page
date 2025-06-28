@@ -1,6 +1,6 @@
 import { setWriteMode, refresh, getPlacedGlyphs, setPlacedGlyphs, writeMode } from './render.js';
 import { CELL_SIZE } from './settings.js';
-import { drawGlyph, selectedGlyphCp } from './picker.js';
+import { drawGlyph, getSelectedGlyph } from './picker.js';
 import { fontColor, backgroundColor } from './palette.js';
 
 export function initTools(fontData) {
@@ -69,10 +69,9 @@ export function initTools(fontData) {
     }
 
     if (e.button === 0 && !writeMode) {
-      painting = true;
+     painting = true;
       let arr = getPlacedGlyphs().filter(g=>!(g.x===x&&g.y===y));
-      const glyphIndex = selectedGlyphCp.toString(16).padStart(2,'0').toUpperCase();
-      arr.push({ glyph: fontData[glyphIndex], x, y, color: fontColor, bgColor: backgroundColor });
+      arr.push({ glyph: getSelectedGlyph(fontData), x, y, color: fontColor, bgColor: backgroundColor });
       setPlacedGlyphs(arr);
       refresh();
     }
@@ -83,6 +82,7 @@ export function initTools(fontData) {
       refresh();
     }
   });
+
   canvas.addEventListener('mousemove', e => {
     if (painting) canvas.dispatchEvent(new MouseEvent('mousedown', e));
     if (deleting) canvas.dispatchEvent(new MouseEvent('mousedown', { ...e, button: 2 }));
