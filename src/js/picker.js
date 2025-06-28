@@ -1,14 +1,19 @@
-import { CELL_SIZE } from './render.js';
+import { CELL_SIZE } from './settings.js';
 import { fontColor, backgroundColor } from './palette.js';
 
-let pickerCanvas, pickerCtx;
+let pickerCanvas, pickerCtx, entries;
 let glyphPositions = [];
 export let selectedGlyphCp = null;
 
 export function initPicker(fontData) {
   pickerCanvas = document.getElementById('pickerCanvas');
   pickerCtx    = pickerCanvas.getContext('2d');
-  redrawPicker(fontData);
+
+  entries = Object.entries(fontData)
+  .map(([hex,rows]) => [parseInt(hex,16),rows])
+  .sort((a,b)=>a[0]-b[0]);
+
+  redrawPicker();
 
   pickerCanvas.addEventListener('click', e => {
     const rect = pickerCanvas.getBoundingClientRect();
@@ -19,20 +24,17 @@ export function initPicker(fontData) {
     for (const { x,y,scale,cp } of glyphPositions) {
       if (mx >= x && mx <= x + 8*scale && my >= y && my <= y + 8*scale) {
         selectedGlyphCp = cp;
-        redrawPicker(fontData);
+        redrawPicker();
         break;
       }
     }
   });
 
-  window.addEventListener('resize', () => redrawPicker(fontData));
+  window.addEventListener('resize', () => redrawPicker());
 }
 
-export function redrawPicker(fontData) {
+export function redrawPicker() {
   const chosenScale = 3;
-  const entries = Object.entries(fontData)
-    .map(([hex,rows]) => [parseInt(hex,16),rows])
-    .sort((a,b)=>a[0]-b[0]);
 
   const cellW = 8 * chosenScale;
   const sidebarW = document.getElementById('sidebar').clientWidth;

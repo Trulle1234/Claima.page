@@ -1,5 +1,5 @@
 import { getPlacedGlyphs, setPlacedGlyphs, refresh } from './render.js';
-import { CELL_SIZE, GRID_COLS, GRID_ROWS } from './render.js';
+import { CELL_SIZE, GRID_COLS, GRID_ROWS } from './settings.js';
 
 export function initFloodFill() {
   document.addEventListener('floodfill', ({ detail: { col, row } }) => {

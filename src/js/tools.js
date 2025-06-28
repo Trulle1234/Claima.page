@@ -1,5 +1,7 @@
-import { setWriteMode, refresh, getPlacedGlyphs, setPlacedGlyphs, GRID_COLS, GRID_ROWS, CELL_SIZE } from './render.js';
-import { drawGlyph } from './picker.js';
+import { setWriteMode, refresh, getPlacedGlyphs, setPlacedGlyphs, writeMode } from './render.js';
+import { CELL_SIZE } from './settings.js';
+import { drawGlyph, selectedGlyphCp } from './picker.js';
+import { fontColor, backgroundColor } from './palette.js';
 
 export function initTools(fontData) {
   const toolButtons = {
@@ -61,15 +63,16 @@ export function initTools(fontData) {
       return;
     }
 
-    if (setWriteMode && e.button === 0) {
+    if (writeMode && e.button === 0) {
       document.dispatchEvent(new CustomEvent('placeCursor', { detail: { col, row } }));
       return;
     }
 
-    if (e.button === 0 && !setWriteMode) {
+    if (e.button === 0 && !writeMode) {
       painting = true;
       let arr = getPlacedGlyphs().filter(g=>!(g.x===x&&g.y===y));
-      arr.push({ glyph: fontData[selectedGlyphCp], x, y, color: fontColor, bgColor: backgroundColor });
+      const glyphIndex = selectedGlyphCp.toString(16).padStart(2,'0').toUpperCase();
+      arr.push({ glyph: fontData[glyphIndex], x, y, color: fontColor, bgColor: backgroundColor });
       setPlacedGlyphs(arr);
       refresh();
     }
