@@ -1,5 +1,5 @@
 import { font8x8_bescii } from '../data/bescii.js';
-import { setupCanvas, scaleDrawCanvasToWindow } from './render.js';
+import { setupCanvas, scaleDrawCanvasToWindow } from './canvas.js';
 import { initTools } from './tools.js';
 import { initPalette } from './palette.js';
 import { initPicker } from './picker.js';

@@ -1,7 +1,7 @@
-import { getPlacedGlyphs, setPlacedGlyphs, refresh } from './render.js';
+import { refresh } from './canvas.js';
 import { CELL_SIZE, GRID_COLS, GRID_ROWS } from './settings.js';
 import { getSelectedGlyph } from './picker.js';
-import { fontColor, backgroundColor } from './palette.js';
+import { state } from './state.js'
 
 export function initFloodFill(fontdata) {
   document.addEventListener('floodfill', ({ detail: { col, row } }) => {
@@ -10,7 +10,7 @@ export function initFloodFill(fontdata) {
 }
 
 function floodFill(startCol, startRow, fontdata) {
-      let placed = getPlacedGlyphs();
+      let placed = state.placedGlyphs;
       const startX = startCol * CELL_SIZE;
       const startY = startRow * CELL_SIZE;
 
@@ -56,6 +56,6 @@ function floodFill(startCol, startRow, fontdata) {
         if (row < GRID_ROWS - 1) queue.push([col, row + 1]);
       }
 
-  setPlacedGlyphs(placed);
+  state.placedGlyphs = placed;
   refresh();
 }

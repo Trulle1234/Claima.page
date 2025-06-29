@@ -1,9 +1,14 @@
-import { setWriteMode, refresh, getPlacedGlyphs, setPlacedGlyphs, writeMode } from './render.js';
+import { refresh } from './canvas.js';
 import { CELL_SIZE } from './settings.js';
-import { drawGlyph, getSelectedGlyph } from './picker.js';
-import { fontColor, backgroundColor } from './palette.js';
+import { getSelectedGlyph } from './picker.js';
+import { state } from './state.js';
+import { drawGlyph } from './render.js';
 
 export function initTools(fontData) {
+
+  let canvas;
+  let painting=false, deleting=false;
+
   const toolButtons = {
     paint: document.getElementById('toolPlaceGlyph'),
     write: document.getElementById('toolWriteKeyboard'),
@@ -29,67 +34,72 @@ export function initTools(fontData) {
   function setActive(tool) {
     Object.values(toolButtons).forEach(b=>b.classList.remove('tool-selected'));
     toolButtons[tool].classList.add('tool-selected');
+    state.activeTool = tool;
   }
 
   // event wiring
   toolButtons.paint.addEventListener('click', () => {
     setActive('paint');
-    setWriteMode(false);
   });
   toolButtons.write.addEventListener('click', () => {
     setActive('write');
-    setWriteMode(true);
   });
   toolButtons.fill.addEventListener('click', () => {
     setActive('fill');
-    setWriteMode(false);
   });
 
   setActive('paint');
 
   // mouse events on drawCanvas
-  const canvas = document.getElementById('drawCanvas');
-  let painting=false, deleting=false;
+  canvas = document.getElementById('drawCanvas');
+
   canvas.addEventListener('mousedown', e => {
-    const rect = canvas.getBoundingClientRect();
-    const sx = canvas.width / rect.width, sy = canvas.height / rect.height;
-    const col = Math.floor((e.clientX - rect.left) * sx / CELL_SIZE);
-    const row = Math.floor((e.clientY - rect.top)  * sy / CELL_SIZE);
-    const x = col * CELL_SIZE, y = row * CELL_SIZE;
-
-    if (toolButtons.fill.classList.contains('tool-selected') && e.button === 0) {
-      // dispatch to floodfill.js
-      document.dispatchEvent(new CustomEvent('floodfill', { detail: { col, row } }));
-      return;
-    }
-
-    if (writeMode && e.button === 0) {
-      document.dispatchEvent(new CustomEvent('placeCursor', { detail: { col, row } }));
-      return;
-    }
-
-    if (e.button === 0 && !writeMode) {
-     painting = true;
-      let arr = getPlacedGlyphs().filter(g=>!(g.x===x&&g.y===y));
-      arr.push({ glyph: getSelectedGlyph(fontData), x, y, color: fontColor, bgColor: backgroundColor });
-      setPlacedGlyphs(arr);
-      refresh();
-    }
-
-    if (e.button === 2) {
-      deleting = true;
-      setPlacedGlyphs(getPlacedGlyphs().filter(g=>!(g.x===x&&g.y===y)));
-      refresh();
-    }
+    handleMouseDown(fontData, e, e.button === 0);
   });
 
   canvas.addEventListener('mousemove', e => {
-    if (painting) canvas.dispatchEvent(new MouseEvent('mousedown', e));
-    if (deleting) canvas.dispatchEvent(new MouseEvent('mousedown', { ...e, button: 2 }));
+    if (painting) handleMouseDown(fontData, e, true);
+    if (deleting) handleMouseDown(fontData, e, false);
   });
+
   window.addEventListener('mouseup', e => {
-    if (e.button===0) painting=false;
-    if (e.button===2) deleting=false;
+    if (e.button === 0) painting=false;
+    if (e.button === 2) deleting=false;
   });
   canvas.addEventListener('contextmenu', e=>e.preventDefault());
+
+  function handleMouseDown(fontData, e, isLeftClick) {
+      const rect = canvas.getBoundingClientRect();
+      const sx = canvas.width / rect.width, sy = canvas.height / rect.height;
+      const col = Math.floor((e.clientX - rect.left) * sx / CELL_SIZE);
+      const row = Math.floor((e.clientY - rect.top)  * sy / CELL_SIZE);
+      const x = col * CELL_SIZE, y = row * CELL_SIZE;
+
+      if (state.activeTool === 'fill' && e.button === 0) {
+        // dispatch to floodfill.js
+        document.dispatchEvent(new CustomEvent('floodfill', { detail: { col, row } }));
+        return;
+      }
+
+      if (state.activeTool === 'write' && isLeftClick) {
+        document.dispatchEvent(new CustomEvent('placeCursor', { detail: { col, row } }));
+        return;
+      }
+
+      if (state.activeTool !== 'write' && isLeftClick) {
+        painting = true;
+        let arr = state.placedGlyphs.filter(g=>!(g.x===x&&g.y===y));
+        arr.push({ glyph: getSelectedGlyph(fontData), x, y, color: state.fontColor, bgColor: state.backgroundColor });
+        state.placedGlyphs = arr;
+        refresh();
+      }
+
+      if (!isLeftClick) {
+        deleting = true;
+        state.placedGlyphs = state.placedGlyphs.filter(g=>!(g.x===x&&g.y===y));
+        refresh();
+      }
+  }
 }
+
+

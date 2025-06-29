@@ -1,9 +1,9 @@
-import { CELL_SIZE } from './settings.js';
-import { fontColor, backgroundColor } from './palette.js';
+import { drawGlyph } from './render.js';
+import { state } from './state.js' 
 
 let pickerCanvas, pickerCtx, entries;
 let glyphPositions = [];
-export let selectedGlyphCp = null;
+let selectedGlyphCp = null;
 
 export function getSelectedGlyphIndex() {
   if (!selectedGlyphCp) return  null;
@@ -19,8 +19,8 @@ export function initPicker(fontData) {
   pickerCtx    = pickerCanvas.getContext('2d');
 
   entries = Object.entries(fontData)
-  .map(([hex,rows]) => [parseInt(hex,16),rows])
-  .sort((a,b)=>a[0]-b[0]);
+    .map(([hex,rows]) => [parseInt(hex,16),rows])
+    .sort((a,b)=>a[0]-b[0]);
 
   redrawPicker();
 
@@ -67,11 +67,11 @@ export function redrawPicker() {
     const x = col * cellW, y = row * cellW;
 
     // draw background cell
-    pickerCtx.fillStyle = backgroundColor;
+    pickerCtx.fillStyle = state.backgroundColor;
     pickerCtx.fillRect(x,y,cellW,cellW);
 
     // draw glyph
-    pickerCtx.fillStyle = fontColor;
+    pickerCtx.fillStyle = state.fontColor;
     drawGlyph(pickerCtx, rowsData, x,y,chosenScale);
 
     glyphPositions.push({ x,y,scale:chosenScale,cp });
@@ -83,13 +83,3 @@ export function redrawPicker() {
   });
 }
 
-export function drawGlyph(ctx, rows, x, y, scale=1) {
-  for (let r=0; r<8; r++){
-    const rowByte = rows[r];
-    for (let b=0; b<8; b++){
-      if (rowByte & (1 << (7-b))) {
-        ctx.fillRect(x + b*scale, y + r*scale, scale, scale);
-      }
-    }
-  }
-}

@@ -1,7 +1,5 @@
-import { refresh } from './render.js';
-
-export let fontColor = '#00ff00';
-export let backgroundColor = '#000000';
+import { refresh } from './canvas.js';
+import { state } from './state.js'
 
 export function initPalette() {
   const paletteColors = [
@@ -21,10 +19,10 @@ export function initPalette() {
       if (selected) selected.classList.remove('palette-selected');
       sw.classList.add('palette-selected');
       selected = sw;
-      fontColor = c;
+      state.fontColor = c;
       refresh();
     });
-    if (c === fontColor) sw.classList.add('palette-selected'), selected = sw;
+    if (c === state.fontColor) sw.classList.add('palette-selected'), selected = sw;
     palette.appendChild(sw);
   });
 
@@ -38,10 +36,10 @@ export function initPalette() {
       if (selectedBg) selectedBg.classList.remove('palette-selected');
       sw.classList.add('palette-selected');
       selectedBg = sw;
-      backgroundColor = c;
+      state.backgroundColor = c;
       refresh();
     });
-    if (c === backgroundColor) sw.classList.add('palette-selected'), selectedBg = sw;
+    if (c === state.backgroundColor) sw.classList.add('palette-selected'), selectedBg = sw;
     bgPalette.appendChild(sw);
   });
 }
