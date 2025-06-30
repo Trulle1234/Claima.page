@@ -3,6 +3,7 @@ import { CELL_SIZE } from './settings.js';
 import { getSelectedGlyph } from './picker.js';
 import { state } from './state.js';
 import { drawGlyph } from './render.js';
+import { handleWrite } from './write.js';
 
 export function initTools(fontData) {
 
@@ -62,6 +63,10 @@ export function initTools(fontData) {
     if (deleting) handleMouseDown(fontData, e, false);
   });
 
+  window.addEventListener('keydown', e => {
+    handleWrite(fontData, e);
+  });
+
   window.addEventListener('mouseup', e => {
     if (e.button === 0) painting=false;
     if (e.button === 2) deleting=false;
@@ -94,7 +99,7 @@ export function initTools(fontData) {
         refresh();
       }
 
-      if (!isLeftClick) {
+      if (!isLeftClick && state.activeTool === 'paint'){
         deleting = true;
         state.placedGlyphs = state.placedGlyphs.filter(g=>!(g.x===x&&g.y===y));
         refresh();

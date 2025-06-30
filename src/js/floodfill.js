@@ -37,8 +37,6 @@ function floodFill(startCol, startRow, fontdata) {
         const bg    = existing?.bgColor ?? null;
 
         const sameGlyph = glyph === targetGlyph;
-        const sameColor = color === targetColor;
-        const sameBg    = bg === targetBg;
 
         if (!sameGlyph || color !== targetColor || bg !== targetBg) continue;
 
@@ -46,8 +44,8 @@ function floodFill(startCol, startRow, fontdata) {
         placed.push({
           glyph: getSelectedGlyph(fontdata),
           x, y,
-          color: fontColor,
-          bgColor: backgroundColor
+          color: state.fontColor,
+          bgColor: state.backgroundColor
         });
 
         if (col > 0) queue.push([col - 1, row]);

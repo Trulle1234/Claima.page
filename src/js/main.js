@@ -4,6 +4,7 @@ import { initTools } from './tools.js';
 import { initPalette } from './palette.js';
 import { initPicker } from './picker.js';
 import { initFloodFill } from './floodfill.js';
+import { initWrite } from './write.js';
 
 window.addEventListener('load', () => {
   setupCanvas(font8x8_bescii);
@@ -11,6 +12,7 @@ window.addEventListener('load', () => {
   initPalette();
   initPicker(font8x8_bescii);
   initFloodFill(font8x8_bescii);
+  initWrite(font8x8_bescii);
   scaleDrawCanvasToWindow();
 });
 

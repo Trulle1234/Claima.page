@@ -5,5 +5,6 @@ export const state = {
     placedGlyphs: [], 
     cursorX: null,         
     cursorY: null,    
-    showCursor: true     
+    showCursor: true,     
+    cursorGlyph: null
 } 

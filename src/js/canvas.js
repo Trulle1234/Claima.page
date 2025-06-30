@@ -35,13 +35,6 @@ export function redrawCanvas() {
     if (glyph) drawGlyph(drawCtx, glyph, x, y, 1);
   }
 
-  // cursor
-  if (state.activeTool === 'write' && state.cursorX !== null && state.cursorY !== null && state.showCursor) {
-    const cursorGlyph = fontData[0xE079];
-    drawCtx.fillStyle = state.fontColor;
-    drawGlyph(drawCtx, cursorGlyph, state.cursorX * Settings.CELL_SIZE, state.cursorY * Settings.CELL_SIZE, 1);
-  }
-
   // grid
   drawCtx.strokeStyle = '#444';
   drawCtx.lineWidth = 0.5;
@@ -55,6 +48,12 @@ export function redrawCanvas() {
     drawCtx.lineTo(drawCanvas.width, y + 0.5);
   }
   drawCtx.stroke();
+
+  // cursor
+  if (state.activeTool === 'write' && state.cursorX !== null && state.cursorY !== null && state.showCursor) {
+    drawCtx.fillStyle = state.fontColor;
+    drawGlyph(drawCtx, state.cursorGlyph, state.cursorX * Settings.CELL_SIZE, state.cursorY * Settings.CELL_SIZE, 1);
+  }
 }
 
 export function refresh() {
