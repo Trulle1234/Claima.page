@@ -5,8 +5,8 @@ import { state } from './state.js';
 let cursorTimer = null;
 let writeStartX = null;
 
-export function initWrite(fontData) {
-    state.cursorGlyph = fontData[0x2588]; //E079
+export function initWrite() {
+    state.cursorGlyph = 0x2588.toString();
 
     document.addEventListener('placeCursor', ({ detail: { col, row } }) => {
         placeCursor(row, col);
@@ -57,10 +57,8 @@ export function handleWrite(fontData, e) {
 
     if (e.key.length !== 1) return;
 
-    const cp = e.key.codePointAt(0);
-    const glyph = fontData[cp];
-
-    if (!glyph) return;
+    const cp = parseInt(e.key.codePointAt(0), 16);
+    if (!cp) return;
 
     if (state.cursorX >= GRID_COLS || state.cursorY >= GRID_ROWS) return;
 
@@ -69,11 +67,11 @@ export function handleWrite(fontData, e) {
 
     state.placedGlyphs = state.placedGlyphs.filter(g => !(g.x === x && g.y === y));
     state.placedGlyphs.push({
-        glyph,
+        glyph: cp,
         x,
         y,
-        color: state.fontColorIndex,
-        bgColor: state.backgroundColorIndex
+        bgColor: state.backgroundColorIndex,
+        color: state.fontColorIndex
     });
 
     refresh();
@@ -81,11 +79,13 @@ export function handleWrite(fontData, e) {
 }
 
 function startCursorBlinking() {
-    if (cursorTimer) clearInterval(cursorTimer);
+    if (cursorTimer) return; 
 
     state.showCursor = true;
     cursorTimer = setInterval(() => {
         state.showCursor = !state.showCursor;
-        refresh();
+        if (state.activeTool === 'write') {
+            refresh();
+        }
     }, 500);
 }

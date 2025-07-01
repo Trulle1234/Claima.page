@@ -41,8 +41,18 @@
       border-bottom: 2px solid #444;
       align-items: center;
       justify-content: center;
-      gap: 10px;
       background: #111;
+    }
+    #tools > div:first-child {
+      display: flex;
+      flex-direction: row;
+      padding-right: 13px;
+    }
+    #tools > div:last-child {
+      display: flex;
+      flex-direction: row;
+      border-left: 2px solid #444;
+      padding-left: 13px;
     }
     #palette {
       display: grid;

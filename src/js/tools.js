@@ -14,6 +14,7 @@ export function initTools(fontData) {
     paint: document.getElementById('toolPlaceGlyph'),
     write: document.getElementById('toolWriteKeyboard'),
     fill:  document.getElementById('toolFillBucket'),
+    grid:  document.getElementById('toolToggleGrid'),
   };
 
   // sizes & icons
@@ -24,10 +25,12 @@ export function initTools(fontData) {
   const ctxPaint = toolButtons.paint.getContext('2d');
   const ctxWrite = toolButtons.write.getContext('2d');
   const ctxFill  = toolButtons.fill.getContext('2d');
+  const ctxGrid = toolButtons.grid.getContext('2d')
 
   drawGlyph(ctxPaint, 0xF019.toString(), 0, 0, 3, 0, 7);
   drawGlyph(ctxWrite, 0xE000.toString(), 0, 0, 3, 0, 7);
   drawGlyph(ctxFill, 0xF014.toString(), 0, 0, 3, 0, 7);
+  drawGlyph(ctxGrid, 0x01FB95.toString(), 0, 0, 3, 0, 7);
 
   function setActive(tool) {
     Object.values(toolButtons).forEach(b=>b.classList.remove('tool-selected'));
@@ -44,6 +47,10 @@ export function initTools(fontData) {
   });
   toolButtons.fill.addEventListener('click', () => {
     setActive('fill');
+  });
+    toolButtons.grid.addEventListener('click', () => {
+    state.showGrid = !state.showGrid
+    refresh();
   });
 
   setActive('paint');

@@ -33,18 +33,20 @@ export function redrawCanvas() {
   }
 
   // grid
-  drawCtx.strokeStyle = '#444';
-  drawCtx.lineWidth = 0.5;
-  drawCtx.beginPath();
-  for (let x = 0; x <= drawCanvas.width; x += Settings.CELL_SIZE) {
-    drawCtx.moveTo(x + 0.5, 0);
-    drawCtx.lineTo(x + 0.5, drawCanvas.height);
+  if (state.showGrid) {
+    drawCtx.strokeStyle = '#444';
+    drawCtx.lineWidth = 0.5;
+    drawCtx.beginPath();
+    for (let x = 0; x <= drawCanvas.width; x += Settings.CELL_SIZE) {
+      drawCtx.moveTo(x + 0.5, 0);
+      drawCtx.lineTo(x + 0.5, drawCanvas.height);
+    }
+    for (let y = 0; y <= drawCanvas.height; y += Settings.CELL_SIZE) {
+      drawCtx.moveTo(0, y + 0.5);
+      drawCtx.lineTo(drawCanvas.width, y + 0.5);
+    }
+    drawCtx.stroke();
   }
-  for (let y = 0; y <= drawCanvas.height; y += Settings.CELL_SIZE) {
-    drawCtx.moveTo(0, y + 0.5);
-    drawCtx.lineTo(drawCanvas.width, y + 0.5);
-  }
-  drawCtx.stroke();
 
   // cursor
   if (state.activeTool === 'write' && state.cursorX !== null && state.cursorY !== null && state.showCursor) {

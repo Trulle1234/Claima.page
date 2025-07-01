@@ -68,7 +68,7 @@ export function redrawPicker() {
     if (cp === selectedGlyphCp) {
       pickerCtx.strokeStyle = '#FFF';
       pickerCtx.lineWidth   = 2;
-      pickerCtx.strokeRect(x-1,y-1,cellW+2,cellW+2);
+      pickerCtx.strokeRect(x-1,y-1,cellW,cellW);
     }
   });
 }

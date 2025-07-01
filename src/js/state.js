@@ -7,5 +7,6 @@ export const state = {
     cursorX: null,         
     cursorY: null,    
     showCursor: true,     
-    cursorGlyph: null
+    cursorGlyph: null,
+    showGrid: true,
 } 
