@@ -3,13 +3,13 @@ import { CELL_SIZE, GRID_COLS, GRID_ROWS } from './settings.js';
 import { getSelectedGlyph } from './picker.js';
 import { state } from './state.js'
 
-export function initFloodFill(fontdata) {
+export function initFloodFill() {
   document.addEventListener('floodfill', ({ detail: { col, row } }) => {
-    floodFill(col, row, fontdata);
+    floodFill(col, row);
   });
 }
 
-function floodFill(startCol, startRow, fontdata) {
+function floodFill(startCol, startRow) {
       let placed = state.placedGlyphs;
       const startX = startCol * CELL_SIZE;
       const startY = startRow * CELL_SIZE;
@@ -42,10 +42,10 @@ function floodFill(startCol, startRow, fontdata) {
 
         placed = placed.filter(g => !(g.x === x && g.y === y));
         placed.push({
-          glyph: getSelectedGlyph(fontdata),
+          glyph: getSelectedGlyph(),
           x, y,
-          color: state.fontColor,
-          bgColor: state.backgroundColor
+          color: state.fontColorIndex,
+          bgColor: state.backgroundColorIndex
         });
 
         if (col > 0) queue.push([col - 1, row]);

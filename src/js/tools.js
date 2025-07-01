@@ -2,7 +2,7 @@ import { refresh } from './canvas.js';
 import { CELL_SIZE } from './settings.js';
 import { getSelectedGlyph } from './picker.js';
 import { state } from './state.js';
-import { drawGlyph } from './render.js';
+import { drawGlyph } from './glyphs.js';
 import { handleWrite } from './write.js';
 
 export function initTools(fontData) {
@@ -20,17 +20,14 @@ export function initTools(fontData) {
   Object.values(toolButtons).forEach(btn => {
     btn.width = btn.height = 24;
   });
-  const paintbrush = fontData[0xF019];
-  const pencil     = fontData[0xE000];
-  const bucket     = fontData[0xF014];
 
   const ctxPaint = toolButtons.paint.getContext('2d');
   const ctxWrite = toolButtons.write.getContext('2d');
   const ctxFill  = toolButtons.fill.getContext('2d');
 
-  ctxPaint.fillStyle = '#0F0'; drawGlyph(ctxPaint, paintbrush, 0, 0, 3);
-  ctxWrite.fillStyle = '#0F0'; drawGlyph(ctxWrite, pencil,     0, 0, 3);
-  ctxFill.fillStyle  = '#0F0'; drawGlyph(ctxFill, bucket,     0, 0, 3);
+  drawGlyph(ctxPaint, 0xF019.toString(), 0, 0, 3, 0, 7);
+  drawGlyph(ctxWrite, 0xE000.toString(), 0, 0, 3, 0, 7);
+  drawGlyph(ctxFill, 0xF014.toString(), 0, 0, 3, 0, 7);
 
   function setActive(tool) {
     Object.values(toolButtons).forEach(b=>b.classList.remove('tool-selected'));
@@ -94,7 +91,7 @@ export function initTools(fontData) {
       if (state.activeTool !== 'write' && isLeftClick) {
         painting = true;
         let arr = state.placedGlyphs.filter(g=>!(g.x===x&&g.y===y));
-        arr.push({ glyph: getSelectedGlyph(fontData), x, y, color: state.fontColor, bgColor: state.backgroundColor });
+        arr.push({ glyph: getSelectedGlyph(), x, y, color: state.fontColorIndex, bgColor: state.backgroundColorIndex });
         state.placedGlyphs = arr;
         refresh();
       }

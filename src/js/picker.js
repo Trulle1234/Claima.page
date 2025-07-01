@@ -1,17 +1,12 @@
-import { drawGlyph } from './render.js';
+import { drawGlyph } from './glyphs.js';
 import { state } from './state.js' 
 
 let pickerCanvas, pickerCtx, entries;
 let glyphPositions = [];
 let selectedGlyphCp = null;
 
-export function getSelectedGlyphIndex() {
-  if (!selectedGlyphCp) return  null;
-  return selectedGlyphCp.toString(16).padStart(2,'0').toUpperCase();
-}
-
-export function getSelectedGlyph(fontData) {
-  return fontData[getSelectedGlyphIndex()];
+export function getSelectedGlyph() {
+  return selectedGlyphCp
 }
 
 export function initPicker(fontData) {
@@ -64,15 +59,10 @@ export function redrawPicker() {
   glyphPositions = [];
   entries.forEach(([cp,rowsData], i) => {
     const col = i % maxCols, row = Math.floor(i/maxCols);
-    const x = col * cellW, y = row * cellW;
+    const x = col * cellW;
+    const y = row * cellW;
 
-    // draw background cell
-    pickerCtx.fillStyle = state.backgroundColor;
-    pickerCtx.fillRect(x,y,cellW,cellW);
-
-    // draw glyph
-    pickerCtx.fillStyle = state.fontColor;
-    drawGlyph(pickerCtx, rowsData, x,y,chosenScale);
+    drawGlyph(pickerCtx, cp, x,y, chosenScale, state.backgroundColorIndex, state.fontColorIndex);
 
     glyphPositions.push({ x,y,scale:chosenScale,cp });
     if (cp === selectedGlyphCp) {

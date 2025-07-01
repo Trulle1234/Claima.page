@@ -1,44 +1,56 @@
-function initGlyphs(fontData) {
-    const glyphs = Object.keys(fontData);
-    const count = glyphs.length;
-    const cols  = 16;                
-    const rows  = Math.ceil(count/cols);
-    const sheet = document.createElement('canvas');
-    sheet.width  = cols * 8;
-    sheet.height = rows * 8;
-    const sctx   = sheet.getContext('2d');
-    sctx.fillStyle = '#000';   
+import { state } from "./state.js";
 
-    glyphs.forEach((cpHex, idx) => {
-    const cp   = Number(cpHex);
-    const rows8 = fontData[cp];
-    const col  = idx % cols;
-    const row  = Math.floor(idx/cols);
-    const baseX = col * 8;
-    const baseY = row * 8;
+let glyphSheets = null;
+let glyphCodes = null;
+const cols = 16;
 
-    for (let r = 0; r < 8; r++) {
-        const byte = rows8[r];
+export function initGlyphs(fontData) {
+  glyphCodes = Object.keys(fontData);
+  const rows = Math.ceil(glyphCodes.length / cols);
+
+  glyphSheets = state.palette.map(color => {
+    const c = document.createElement('canvas');
+    c.width  = cols * 8;
+    c.height = rows * 8;
+    const ctx = c.getContext('2d');
+    ctx.fillStyle = color;
+    glyphCodes.forEach((cpHex, idx) => {
+      const cp   = cpHex.toString(16).padStart(2,'0').toUpperCase();
+      const data = fontData[cp];
+      const col  = idx % cols;
+      const row  = Math.floor(idx / cols);
+      const baseX = col * 8;
+      const baseY = row * 8;
+
+      for (let r = 0; r < 8; r++) {
+        const byte = data[r];
         for (let b = 0; b < 8; b++) {
-        if (byte & (1 << (7 - b))) {
-            sctx.fillRect(baseX + b, baseY + r, 1, 1);
+          if (byte & (1 << (7 - b))) {
+            ctx.fillRect(baseX + b, baseY + r, 1, 1);
+          }
         }
-        }
-    }
-
-    glyphMap[cp] = { sx: baseX, sy: baseY };
+      }
     });
-
+    return c;
+  });
 }
 
+export function drawGlyph(ctx, codePoint, x, y, scale = 1, bgIndex = 0, fgIndex = 0) {
+  ctx.imageSmoothingEnabled = false;
+  ctx.imageSmoothingQuality = 'low';
 
-function drawGlyph(ctx, codePoint, x, y, scale = 1) {
-  const info = glyphMap[codePoint];
-  if (!info) return;
-  ctx.drawImage(
-    sheet,
-    info.sx, info.sy, 8, 8,   
-    x, y,                     
-    8*scale, 8*scale
-  );
+  const cp  = codePoint.toString(16).padStart(2,'0').toUpperCase();
+  const idx = glyphCodes.indexOf(cp.toString());
+  if (idx < 0) return; 
+
+  const sx = (idx % cols) * 8;
+  const sy = Math.floor(idx / cols) * 8;
+  const w  = 8 * scale;
+  const h  = 8 * scale;
+
+  ctx.fillStyle = state.palette[bgIndex];
+  ctx.fillRect(x, y, w, h);
+
+  const sheet = glyphSheets[fgIndex];
+  ctx.drawImage(sheet, sx, sy, 8, 8, x, y, w, h);
 }

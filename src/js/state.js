@@ -1,7 +1,8 @@
 export const state = {
     activeTool: 'paint',
-    fontColor: '#00ff00',
-    backgroundColor: '#000000',
+    palette: null,
+    fontColorIndex: 7,
+    backgroundColorIndex: 0,
     placedGlyphs: [], 
     cursorX: null,         
     cursorY: null,    

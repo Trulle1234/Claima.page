@@ -72,8 +72,8 @@ export function handleWrite(fontData, e) {
         glyph,
         x,
         y,
-        color: state.fontColor,
-        bgColor: state.backgroundColor
+        color: state.fontColorIndex,
+        bgColor: state.backgroundColorIndex
     });
 
     refresh();

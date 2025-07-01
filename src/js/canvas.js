@@ -1,7 +1,7 @@
 import * as Settings from './settings.js';
 import { redrawPicker } from './picker.js';
 import { state } from './state.js'
-import { drawGlyph } from './render.js';
+import { drawGlyph } from './glyphs.js';
 
 let drawCanvas, drawCtx;
 
@@ -29,10 +29,7 @@ export function redrawCanvas() {
 
   // draw placed glyphs
   for (const { glyph, x, y, color, bgColor } of state.placedGlyphs) {
-    drawCtx.fillStyle = bgColor;
-    drawCtx.fillRect(x, y, Settings.CELL_SIZE, Settings.CELL_SIZE);
-    drawCtx.fillStyle = color;
-    if (glyph) drawGlyph(drawCtx, glyph, x, y, 1);
+    if (glyph) drawGlyph(drawCtx, glyph, x, y, 1, bgColor, color);
   }
 
   // grid
@@ -51,8 +48,7 @@ export function redrawCanvas() {
 
   // cursor
   if (state.activeTool === 'write' && state.cursorX !== null && state.cursorY !== null && state.showCursor) {
-    drawCtx.fillStyle = state.fontColor;
-    drawGlyph(drawCtx, state.cursorGlyph, state.cursorX * Settings.CELL_SIZE, state.cursorY * Settings.CELL_SIZE, 1);
+    drawGlyph(drawCtx, state.cursorGlyph, state.cursorX * Settings.CELL_SIZE, state.cursorY * Settings.CELL_SIZE, 1, state.backgroundColorIndex, state.fontColorIndex);
   }
 }
 
