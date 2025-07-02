@@ -17,7 +17,7 @@ export function initTools(fontData) {
     grid:     document.getElementById('toolToggleGrid'),
     download: document.getElementById('toolDownload'),
     upload:   document.getElementById('toolUpload')
-  };
+    };
 
   const fileInput = document.getElementById('fileInput');
 
@@ -35,6 +35,7 @@ export function initTools(fontData) {
   function setActive(tool) {
     Object.values(toolButtons).forEach(b => b.classList.remove('tool-selected'));
     toolButtons[tool].classList.add('tool-selected');
+    toolButtons.grid.classList.add('tool-selected');
     state.activeTool = tool;
     pickerVisible(tool !== 'write');
   }
@@ -44,6 +45,11 @@ export function initTools(fontData) {
   toolButtons.fill .addEventListener('click', () => setActive('fill'));
   toolButtons.grid .addEventListener('click', () => {
     state.showGrid = !state.showGrid;
+    if (state.showGrid) {
+      toolButtons.grid.classList.add('tool-selected');
+    } else {
+      toolButtons.grid.classList.remove('tool-selected');
+    }
     refresh();
   });
 
