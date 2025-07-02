@@ -18,7 +18,7 @@ export function initTools(fontData) {
     download: document.getElementById('toolDownload'),
     upload:   document.getElementById('toolUpload')
     };
-
+    
   const fileInput = document.getElementById('fileInput');
 
   Object.values(toolButtons).forEach(btn => {
