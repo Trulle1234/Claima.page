@@ -1,10 +1,10 @@
 import { refresh, drawCanvas, drawCtx } from './canvas.js';
-import { CELL_SIZE } from './settings.js';
+import { CELL_SIZE, GRID_ROWS, GRID_COLS } from './settings.js';
 import { getSelectedGlyph, pickerVisible } from './picker.js';
 import { state } from './state.js';
 import { drawGlyph } from './glyphs.js';
 import { handleWrite } from './write.js';
-import { setCell } from './screen_buffer.js';
+import { setCell, screenBuffer } from './screen_buffer.js';
 
 export function initTools(fontData) {
   let canvas;
@@ -55,40 +55,62 @@ export function initTools(fontData) {
 
   setActive('paint');
 
-  toolButtons.download.addEventListener('click', () => {
-    const inputName = window.prompt("Filename:", "my_page");
-    if (!inputName) return;
-    const filename = inputName.endsWith(".apage")
-      ? inputName
-      : inputName + ".apage";
+toolButtons.download.addEventListener('click', () => {
+  const name = window.prompt("Filename to save:", "my_page");
+  if (!name) return;
+  const filename = name.endsWith(".apage") ? name : name + ".apage";
 
-    drawCanvas.toBlob(blob => {
-      const a = document.createElement('a');
-      a.download = filename;
-      a.href     = URL.createObjectURL(blob);
-      a.click();
-      URL.revokeObjectURL(a.href);
-    }, 'image/png');
+  const payload = {
+    cpBuf: Array.from(screenBuffer.cpBuf),
+    bgBuf: Array.from(screenBuffer.bgBuf),
+    fgBuf: Array.from(screenBuffer.fgBuf),
+    cols: GRID_COLS,
+    rows: GRID_ROWS
+  };
+
+  const blob = new Blob([JSON.stringify(payload)], {
+    type: "application/json"
   });
+  const a = document.createElement('a');
+  a.download = filename;
+  a.href     = URL.createObjectURL(blob);
+  a.click();
+  URL.revokeObjectURL(a.href);
+});
 
+toolButtons.upload.addEventListener('click', () => {
+  fileInput.value = null;
+  fileInput.click();
+});
 
-  toolButtons.upload.addEventListener('click', () => {
-    fileInput.value = null;
-    fileInput.click();
-  });
+fileInput.addEventListener('change', e => {
+  const file = e.target.files[0];
+  if (!file) return;
+  const reader = new FileReader();
+  reader.onload = () => {
+    try {
+      const payload = JSON.parse(reader.result);
+      if (
+        payload.cols  !== GRID_COLS || 
+        payload.rows  !== GRID_ROWS ||
+        !Array.isArray(payload.cpBuf) ||
+        !Array.isArray(payload.bgBuf) ||
+        !Array.isArray(payload.fgBuf)
+      ) {
+        throw new Error("Invalid .apage format");
+      }
 
-  fileInput.addEventListener('change', e => {
-    const file = e.target.files[0];
-    if (!file) return;
-    const url = URL.createObjectURL(file);
-    const img = new Image();
-    img.onload = () => {
-      drawCtx.clearRect(0, 0, drawCanvas.width, drawCanvas.height);
-      drawCtx.drawImage(img, 0, 0, drawCanvas.width, drawCanvas.height);
-      URL.revokeObjectURL(url);
-    };
-    img.src = url;
-  });
+      screenBuffer.cpBuf = Uint16Array.from(payload.cpBuf);
+      screenBuffer.bgBuf = Uint8Array.from(payload.bgBuf);
+      screenBuffer.fgBuf = Uint8Array.from(payload.fgBuf);
+
+      refresh();
+    } catch (err) {
+      alert("Failed to load file: " + err.message);
+    }
+  };
+  reader.readAsText(file);
+});
 
   canvas = document.getElementById('drawCanvas');
   canvas.addEventListener('mousedown', e => handleMouseDown(fontData, e, e.button === 0));
