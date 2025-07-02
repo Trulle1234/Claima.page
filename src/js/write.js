@@ -1,4 +1,5 @@
 import { refresh } from './canvas.js';
+import { setCell } from './screen_buffer.js';
 import { GRID_COLS, GRID_ROWS, CELL_SIZE } from './settings.js';
 import { state } from './state.js';
 
@@ -37,9 +38,7 @@ export function handleWrite(fontData, e) {
     if (e.key === 'Backspace') {
         if (state.cursorX > 0) {
             state.cursorX--;
-            const x = state.cursorX * CELL_SIZE;
-            const y = state.cursorY * CELL_SIZE;
-            state.placedGlyphs = state.placedGlyphs.filter(g => !(g.x === x && g.y === y));
+            setCell(state.cursorX, state.cursorY, 0, state.backgroundColorIndex, 0);
             refresh();
         }
         e.preventDefault();
@@ -47,9 +46,7 @@ export function handleWrite(fontData, e) {
     }
 
     if (e.key === 'Delete') {
-        const x = state.cursorX * CELL_SIZE;
-        const y = state.cursorY * CELL_SIZE;
-        state.placedGlyphs = state.placedGlyphs.filter(g => !(g.x === x && g.y === y));
+        setCell(state.cursorX, state.cursorY, 0, state.backgroundColorIndex, 0);
         refresh();
         e.preventDefault();
         return;
@@ -59,20 +56,9 @@ export function handleWrite(fontData, e) {
 
     const cp = parseInt(e.key.codePointAt(0), 16);
     if (!cp) return;
-
     if (state.cursorX >= GRID_COLS || state.cursorY >= GRID_ROWS) return;
 
-    const x = state.cursorX * CELL_SIZE;
-    const y = state.cursorY * CELL_SIZE;
-
-    state.placedGlyphs = state.placedGlyphs.filter(g => !(g.x === x && g.y === y));
-    state.placedGlyphs.push({
-        glyph: cp,
-        x,
-        y,
-        bgColor: state.backgroundColorIndex,
-        color: state.fontColorIndex
-    });
+    setCell(state.cursorX, state.cursorY, cp, state.backgroundColorIndex, state.fontColorIndex);
 
     refresh();
     state.cursorX++;

@@ -73,3 +73,12 @@ export function redrawPicker() {
   });
 }
 
+export function pickerVisible(visible) {
+  pickerCanvas = document.getElementById('pickerCanvas');
+  if (visible){
+    pickerCanvas.style.display = "block"
+  }
+  else {
+  pickerCanvas.style.display = "none"
+  }
+}

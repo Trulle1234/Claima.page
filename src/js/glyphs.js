@@ -39,18 +39,23 @@ export function drawGlyph(ctx, codePoint, x, y, scale = 1, bgIndex = 0, fgIndex 
   ctx.imageSmoothingEnabled = false;
   ctx.imageSmoothingQuality = 'low';
 
-  const cp  = codePoint.toString(16).padStart(2,'0').toUpperCase();
-  const idx = glyphCodes.indexOf(cp.toString());
-  if (idx < 0) return; 
-
-  const sx = (idx % cols) * 8;
-  const sy = Math.floor(idx / cols) * 8;
   const w  = 8 * scale;
   const h  = 8 * scale;
 
   ctx.fillStyle = state.palette[bgIndex];
   ctx.fillRect(x, y, w, h);
 
+  if (codePoint === 0) {
+    return 
+  }
+
+  const cp  = codePoint.toString(16).padStart(2,'0').toUpperCase();
+  const idx = glyphCodes.indexOf(cp.toString());
+  if (idx < 0) return; 
+
+  const sx = (idx % cols) * 8;
+  const sy = Math.floor(idx / cols) * 8;
+  
   const sheet = glyphSheets[fgIndex];
   ctx.drawImage(sheet, sx, sy, 8, 8, x, y, w, h);
 }

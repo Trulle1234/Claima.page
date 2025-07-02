@@ -2,8 +2,10 @@ import * as Settings from './settings.js';
 import { redrawPicker } from './picker.js';
 import { state } from './state.js'
 import { drawGlyph } from './glyphs.js';
+import { getBufferIndex, screenBuffer } from './screen_buffer.js';
 
-let drawCanvas, drawCtx;
+export let drawCanvas;
+export let drawCtx;
 
 export function setupCanvas(fontData) {
   drawCanvas = document.getElementById('drawCanvas');
@@ -28,8 +30,14 @@ export function redrawCanvas() {
   drawCtx.fillRect(0, 0, drawCanvas.width, drawCanvas.height);
 
   // draw placed glyphs
-  for (const { glyph, x, y, color, bgColor } of state.placedGlyphs) {
-    if (glyph) drawGlyph(drawCtx, glyph, x, y, 1, bgColor, color);
+  for (let y = 0; y < Settings.GRID_ROWS; y++) {
+    for (let x = 0; x < Settings.GRID_COLS; x++) {
+      const i = getBufferIndex(x, y);
+      const codePoint = screenBuffer.cpBuf[i];
+      const bgIndex   = screenBuffer.bgBuf[i];
+      const fgIndex   = screenBuffer.fgBuf[i];
+      drawGlyph(drawCtx, codePoint, x * Settings.CELL_SIZE, y * Settings.CELL_SIZE, 1, bgIndex, fgIndex);
+    }
   }
 
   // grid
