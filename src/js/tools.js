@@ -15,6 +15,7 @@ export function initTools(fontData) {
     write:    document.getElementById('toolWriteKeyboard'),
     fill:     document.getElementById('toolFillBucket'),
     grid:     document.getElementById('toolToggleGrid'),
+    clear:   document.getElementById('toolClear'),
     download: document.getElementById('toolDownload'),
     upload:   document.getElementById('toolUpload')
     };
@@ -29,6 +30,7 @@ export function initTools(fontData) {
   drawGlyph(toolButtons.write.getContext('2d'),    0xE000.toString(),    0, 0, 3, 0, 7);
   drawGlyph(toolButtons.fill .getContext('2d'),    0xF014.toString(),    0, 0, 3, 0, 7);
   drawGlyph(toolButtons.grid .getContext('2d'),    0x01FB95.toString(),  0, 0, 3, 0, 7);
+  drawGlyph(toolButtons.clear  .getContext('2d'), 0x2573.toString(),    0, 0, 3, 0, 7);
   drawGlyph(toolButtons.download.getContext('2d'), 0x2198.toString(),    0, 0, 3, 0, 7);
   drawGlyph(toolButtons.upload  .getContext('2d'), 0x2196.toString(),    0, 0, 3, 0, 7);
 
@@ -51,6 +53,17 @@ export function initTools(fontData) {
       toolButtons.grid.classList.remove('tool-selected');
     }
     refresh();
+  });
+
+  toolButtons.clear.addEventListener('click', () => {
+    if (window.confirm("Are you sure you want to clear the canvas?")) {
+      for (let y = 0; y < GRID_ROWS; y++) {
+        for (let x = 0; x < GRID_COLS; x++) {
+          setCell(x, y, 0, 0, 0);
+        }
+      }
+      refresh();
+    }
   });
 
   setActive('paint');
@@ -100,7 +113,7 @@ fileInput.addEventListener('change', e => {
         throw new Error("Invalid .apage format");
       }
 
-      screenBuffer.cpBuf = Uint16Array.from(payload.cpBuf);
+      screenBuffer.cpBuf = Uint32Array.from(payload.cpBuf);
       screenBuffer.bgBuf = Uint8Array.from(payload.bgBuf);
       screenBuffer.fgBuf = Uint8Array.from(payload.fgBuf);
 
