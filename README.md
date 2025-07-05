@@ -1,6 +1,6 @@
 # **Claima Page**
 
-**Claima Page** is a **browser‑based**, **retro‑style** **Drawing program** built with **plain JavaScript** and **HTML5 Canvas**. Draw pixel art in the style of **Commodore‑era PETSCII** graphics, export & import your creations, and share them with the community!
+**Claima Page** is a **browser‑based**, **retro‑style** **Drawing program** built with **plain JavaScript** and **HTML5 Canvas**. Draw pixel art in a **Retro PETSCII like style** , export & import your creations, and share them with the community!
 
 ---
 
@@ -20,7 +20,7 @@
   Flood‑fill any contiguous area with the selected glyph.  
 - **Toggle Grid**  
   Show or hide the grid overlay for precise placement.  
-- **Custom Palettes**  
+- **Palette**  
   Pick **foreground** and **background** glyphs/colors.  
 - **Import / Export**  
   Save your work to a **.apage** file or load it back in.  
