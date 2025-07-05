@@ -3,7 +3,7 @@ import { GRID_COLS, GRID_ROWS } from "./settings.js"
 const bufSize = GRID_COLS *  GRID_ROWS
 
 export const screenBuffer = {
-    cpBuf: new Uint16Array(bufSize),
+    cpBuf: new Uint32Array(bufSize),
     bgBuf: new Uint8Array(bufSize),
     fgBuf: new Uint8Array(bufSize)
 }
